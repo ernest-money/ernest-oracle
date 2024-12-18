@@ -1,6 +1,8 @@
 #![allow(dead_code)]
+mod events;
 mod mempool;
 mod oracle;
+mod routes;
 mod storage;
 mod watcher;
 
@@ -14,22 +16,19 @@ use axum::{
 use bitcoin::{
     key::{Keypair, Secp256k1},
     secp256k1::SecretKey,
-    XOnlyPublicKey,
 };
-use kormir::{
-    storage::{OracleEventData, Storage},
-    OracleAnnouncement, OracleAttestation,
-};
-use mempool::MempoolClient;
+use kormir::{storage::OracleEventData, OracleAnnouncement, OracleAttestation};
+use log::LevelFilter;
+use mempool::{MempoolClient, BASE_URL};
 use oracle::ErnestOracle;
+use routes::{CreateEvent, GetEvent, SignEvent};
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
 use std::{str::FromStr, sync::Arc};
 use storage::PostgresStorage;
-use uuid::Uuid;
 
-const NB_DIGITS: u16 = 30;
-const UNIT: &str = "H/s";
+pub const IS_SIGNED: bool = false;
+pub const PRECISION: i32 = 2;
 
 #[derive(Debug, Serialize, Deserialize)]
 struct OracleError {
@@ -42,13 +41,15 @@ struct OracleState {
 }
 
 async fn hello() -> Html<&'static str> {
-    Html("<h1>Ernest Oracle</h1>")
+    Html("<h1 style='width: 100%; height: 100vh; display: flex; justify-content: center; align-items: center; font-family: sans-serif; margin: 0;'>Ernest Oracle</h1>")
 }
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     dotenv::dotenv()?;
-    env_logger::init();
+    env_logger::Builder::new()
+        .filter_level(LevelFilter::Info)
+        .init();
     log::info!("Starting Ernest Hashrate Oracle");
 
     let pg_url = std::env::var("DATABASE_URL")?;
@@ -61,13 +62,13 @@ async fn main() -> anyhow::Result<()> {
 
     let storage = PostgresStorage::new(pool, pubkey.0).await?;
     let oracle = ErnestOracle::new(storage, key_pair)?;
-    let mempool = MempoolClient::new();
+    let mempool = MempoolClient::new(BASE_URL.to_string());
 
     let state = Arc::new(OracleState { oracle, mempool });
 
     let state_clone = state.clone();
     tokio::spawn(async move {
-        watcher::sign_matured_events(state_clone).await;
+        watcher::sign_matured_events_loop(state_clone).await;
     });
 
     let app = Router::new()
@@ -88,29 +89,11 @@ async fn main() -> anyhow::Result<()> {
     Ok(())
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct CreateEvent {
-    maturity: u32,
-}
-
 async fn create_event(
     State(state): State<Arc<OracleState>>,
     Json(event): Json<CreateEvent>,
 ) -> Result<Json<OracleAnnouncement>, (StatusCode, Json<OracleError>)> {
-    let event_id = Uuid::new_v4().to_string();
-    match state
-        .oracle
-        .oracle
-        .create_numeric_event(
-            event_id,
-            NB_DIGITS,
-            false,
-            2,
-            UNIT.to_string(),
-            event.maturity,
-        )
-        .await
-    {
+    match routes::create_event_internal(state, event).await {
         Ok(event) => Ok(Json(event)),
         Err(e) => Err((
             StatusCode::BAD_REQUEST,
@@ -119,74 +102,20 @@ async fn create_event(
             }),
         )),
     }
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct GetEvent {
-    event_id: String,
 }
 
 async fn event(
     State(state): State<Arc<OracleState>>,
     event: Query<GetEvent>,
 ) -> Result<Json<OracleAnnouncement>, (StatusCode, Json<OracleError>)> {
-    match state
-        .oracle
-        .oracle
-        .storage
-        .get_event(event.0.event_id)
-        .await
-    {
-        Ok(event) => match event {
-            Some(e) => Ok(Json(e.announcement)),
-            None => Err((
-                StatusCode::NOT_FOUND,
-                Json(OracleError {
-                    reason: "Oracle event not found".to_string(),
-                }),
-            )),
-        },
-        Err(e) => Err((
-            StatusCode::BAD_REQUEST,
+    match routes::event_internal(state, event.0).await {
+        Ok(Some(event)) => Ok(Json(event)),
+        Ok(None) => Err((
+            StatusCode::NOT_FOUND,
             Json(OracleError {
-                reason: format!("Failed to retrieve oracle event. error={}", e.to_string()),
+                reason: "Oracle event not found".to_string(),
             }),
         )),
-    }
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-struct SignEvent {
-    event_id: String,
-}
-
-async fn sign_event(
-    State(state): State<Arc<OracleState>>,
-    Json(event): Json<SignEvent>,
-) -> Result<Json<OracleAttestation>, (StatusCode, Json<OracleError>)> {
-    let hashrate = state
-        .mempool
-        .get_hashrate(mempool::TimePeriod::ThreeMonths)
-        .await
-        .map_err(|e| {
-            (
-                StatusCode::NOT_FOUND,
-                Json(OracleError {
-                    reason: format!(
-                        "Could not get hashrate from mempool.space error={}",
-                        e.to_string()
-                    ),
-                }),
-            )
-        })?;
-
-    match state
-        .oracle
-        .oracle
-        .sign_numeric_event(event.event_id, hashrate)
-        .await
-    {
-        Ok(event) => Ok(Json(event)),
         Err(e) => Err((
             StatusCode::BAD_REQUEST,
             Json(OracleError {
@@ -196,38 +125,35 @@ async fn sign_event(
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-struct OracleInfo {
-    pubkey: XOnlyPublicKey,
-    name: String,
+async fn sign_event(
+    State(state): State<Arc<OracleState>>,
+    Json(event): Json<SignEvent>,
+) -> Result<Json<OracleAttestation>, (StatusCode, Json<OracleError>)> {
+    match routes::sign_event_internal(state, event).await {
+        Ok(attestation) => Ok(Json(attestation)),
+        Err(e) => Err((
+            StatusCode::BAD_REQUEST,
+            Json(OracleError {
+                reason: e.to_string(),
+            }),
+        )),
+    }
 }
 
 async fn oracle_info(State(state): State<Arc<OracleState>>) -> impl IntoResponse {
-    let pubkey = state.oracle.oracle.public_key();
-    let oracle_info = OracleInfo {
-        pubkey,
-        name: "Ernest Hashrate Oracle".to_string(),
-    };
-    Json(oracle_info).into_response()
+    Json(routes::oracle_info_internal(state).await).into_response()
 }
 
 async fn list_events(
     State(state): State<Arc<OracleState>>,
 ) -> Result<Json<Vec<OracleEventData>>, (StatusCode, Json<OracleError>)> {
-    let events = state
-        .oracle
-        .oracle
-        .storage
-        .list_events()
-        .await
-        .map_err(|e| {
-            (
-                StatusCode::BAD_REQUEST,
-                Json(OracleError {
-                    reason: e.to_string(),
-                }),
-            )
-        })?;
-
-    Ok(Json(events))
+    match routes::list_events_internal(state).await {
+        Ok(events) => Ok(Json(events)),
+        Err(e) => Err((
+            StatusCode::BAD_REQUEST,
+            Json(OracleError {
+                reason: e.to_string(),
+            }),
+        )),
+    }
 }
