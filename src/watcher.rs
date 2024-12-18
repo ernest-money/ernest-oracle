@@ -1,58 +1,62 @@
 use std::{sync::Arc, time::Duration};
 
 use chrono::Utc;
-use kormir::storage::OracleEventData;
+use kormir::{storage::OracleEventData, EventDescriptor};
 
-use crate::{mempool::TimePeriod, OracleState};
+use crate::{events::EventType, OracleState};
 
-pub async fn sign_matured_events(state: Arc<OracleState>) {
+pub async fn sign_matured_events_loop(state: Arc<OracleState>) {
     let mut timer = tokio::time::interval(Duration::from_secs(60));
     loop {
         timer.tick().await;
-        let Ok(events) = state.oracle.oracle.storage.list_events().await else {
-            log::error!("Failed to get all events.");
-            continue;
-        };
-        let now: u32 = Utc::now().timestamp().try_into().unwrap();
-        let unsigned_expired_events = events
-            .iter()
-            .filter(|event| {
-                event.announcement.oracle_event.event_maturity_epoch < now
-                    && event.signatures.is_empty()
-            })
-            .cloned()
-            .collect::<Vec<OracleEventData>>();
-
-        let current_hashrate = state
-            .mempool
-            .get_hashrate(TimePeriod::ThreeMonths)
-            .await
-            .unwrap();
-        for event in unsigned_expired_events {
-            if let Err(e) = state
-                .oracle
-                .oracle
-                .sign_numeric_event(event.event_id.clone(), current_hashrate)
-                .await
-            {
-                log::info!(
-                    "Could not sign for event. error={} event_id={} hashrate={}",
-                    e.to_string(),
-                    event.event_id,
-                    current_hashrate
-                );
-                continue;
-            }
-
-            log::info!(
-                "Signed event. event_id={} hashrate={}",
-                event.event_id,
-                current_hashrate
-            );
-        }
+        let state_clone = state.clone();
+        sign_matured_events(state_clone).await;
     }
 }
 
-fn sleep() {
-    std::thread::sleep(Duration::from_secs(60))
+async fn sign_matured_events(state: Arc<OracleState>) {
+    let Ok(events) = state.oracle.oracle.storage.list_events().await else {
+        return log::error!("Failed to get all events.");
+    };
+
+    let now: u32 = Utc::now().timestamp().try_into().unwrap();
+    let unsigned_expired_events = events
+        .iter()
+        .filter(|event| {
+            event.announcement.oracle_event.event_maturity_epoch < now
+                && event.signatures.is_empty()
+        })
+        .cloned()
+        .collect::<Vec<OracleEventData>>();
+
+    for event in unsigned_expired_events {
+        let unit = match event.announcement.oracle_event.event_descriptor {
+            EventDescriptor::DigitDecompositionEvent(descriptor) => descriptor.unit,
+            EventDescriptor::EnumEvent(_) => continue,
+        };
+
+        let Ok(outcome) = EventType::outcome_from_str(&unit, &state.mempool).await else {
+            return log::error!("Could not sign for event. event_id={}", event.event_id,);
+        };
+
+        if let Err(e) = state
+            .oracle
+            .oracle
+            .sign_numeric_event(event.event_id.clone(), outcome)
+            .await
+        {
+            return log::error!(
+                "Could not sign for event. error={} event_id={} outcome={}",
+                e.to_string(),
+                event.event_id,
+                outcome
+            );
+        }
+
+        return log::info!(
+            "Signed event. event_id={} outcome={}",
+            event.event_id,
+            outcome
+        );
+    }
 }
