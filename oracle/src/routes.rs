@@ -100,6 +100,38 @@ pub async fn sign_event_internal(
         .await?)
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GetAttestation {
+    event_id: String,
+}
+
+pub async fn get_attestation_internal(
+    state: Arc<OracleState>,
+    event: GetAttestation,
+) -> anyhow::Result<OracleAttestation> {
+    let event = match state
+        .oracle
+        .oracle
+        .storage
+        .get_event(event.event_id)
+        .await?
+    {
+        Some(e) => e,
+        None => return Err(anyhow!("Could not find event.")),
+    };
+
+    if event.signatures.is_empty() {
+        return Err(anyhow!("Event is not signed."));
+    } else {
+        Ok(OracleAttestation {
+            event_id: event.event_id,
+            oracle_public_key: event.announcement.oracle_public_key,
+            signatures: event.signatures.iter().cloned().map(|sig| sig.1).collect(),
+            outcomes: event.signatures.iter().cloned().map(|o| o.0).collect(),
+        })
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct OracleInfo {
     pubkey: XOnlyPublicKey,

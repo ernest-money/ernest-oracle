@@ -1,7 +1,7 @@
 // use crate::models::event::{Event, NewEvent};
 use bitcoin::secp256k1::schnorr::Signature;
 use bitcoin::secp256k1::XOnlyPublicKey;
-use ddk_messages::oracle_msgs::{EventDescriptor, OracleAnnouncement};
+use dlc_messages::oracle_msgs::{EventDescriptor, OracleAnnouncement};
 use kormir::error::Error;
 use kormir::lightning::util::ser::Readable;
 use kormir::lightning::util::ser::Writeable;

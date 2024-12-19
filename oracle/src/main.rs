@@ -21,7 +21,7 @@ use kormir::{storage::OracleEventData, OracleAnnouncement, OracleAttestation};
 use log::LevelFilter;
 use mempool::{MempoolClient, BASE_URL};
 use oracle::ErnestOracle;
-use routes::{CreateEvent, GetEvent, SignEvent};
+use routes::{CreateEvent, GetAttestation, GetEvent, SignEvent};
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
 use std::{str::FromStr, sync::Arc};
@@ -77,6 +77,7 @@ async fn main() -> anyhow::Result<()> {
         .route("/list-events", get(list_events))
         .route("/create-event", post(create_event))
         .route("/event", get(event))
+        .route("/attestation", get(get_attestation))
         .route("/sign-event", post(sign_event))
         .with_state(state);
 
@@ -116,6 +117,21 @@ async fn event(
                 reason: "Oracle event not found".to_string(),
             }),
         )),
+        Err(e) => Err((
+            StatusCode::BAD_REQUEST,
+            Json(OracleError {
+                reason: e.to_string(),
+            }),
+        )),
+    }
+}
+
+async fn get_attestation(
+    State(state): State<Arc<OracleState>>,
+    event: Query<GetAttestation>,
+) -> Result<Json<OracleAttestation>, (StatusCode, Json<OracleError>)> {
+    match routes::get_attestation_internal(state, event.0).await {
+        Ok(attestation) => Ok(Json(attestation)),
         Err(e) => Err((
             StatusCode::BAD_REQUEST,
             Json(OracleError {
