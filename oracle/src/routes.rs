@@ -1,5 +1,5 @@
 use crate::events::{EventParams, EventType};
-use crate::{IS_SIGNED, PRECISION};
+use crate::{OracleError, IS_SIGNED, PRECISION};
 use anyhow::anyhow;
 use bitcoin::XOnlyPublicKey;
 use kormir::{
@@ -41,27 +41,27 @@ pub async fn create_event_internal(
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct GetEvent {
+pub struct GetAnnouncement {
     event_id: String,
 }
 
-pub async fn event_internal(
+pub async fn get_announcement_internal(
     state: Arc<OracleState>,
-    event: GetEvent,
-) -> anyhow::Result<Option<OracleAnnouncement>> {
-    state
+    event: GetAnnouncement,
+) -> Result<OracleAnnouncement, OracleError> {
+    Ok(state
         .oracle
         .oracle
         .storage
         .get_event(event.event_id)
         .await
-        .map(|event| event.map(|e| e.announcement))
-        .map_err(|e| {
-            anyhow!(format!(
-                "Failed to retrieve oracle event. error={}",
-                e.to_string()
-            ))
-        })
+        .map_err(|e| OracleError {
+            reason: e.to_string(),
+        })?
+        .ok_or(OracleError {
+            reason: "Announcement not found".to_string(),
+        })?
+        .announcement)
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
