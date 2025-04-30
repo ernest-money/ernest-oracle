@@ -1,5 +1,5 @@
 use crate::events::{EventParams, EventType};
-use crate::{OracleError, IS_SIGNED, PRECISION};
+use crate::OracleError;
 use anyhow::anyhow;
 use bitcoin::XOnlyPublicKey;
 use kormir::{
@@ -13,6 +13,9 @@ use std::sync::Arc;
 use uuid::Uuid;
 
 use crate::OracleState;
+
+pub const IS_SIGNED: bool = false;
+pub const PRECISION: i32 = 2;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CreateEvent {
