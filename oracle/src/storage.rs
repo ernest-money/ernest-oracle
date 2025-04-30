@@ -4,10 +4,10 @@ use bitcoin::secp256k1::XOnlyPublicKey;
 use dlc_messages::oracle_msgs::{EventDescriptor, OracleAnnouncement};
 use kormir::error::Error;
 use kormir::lightning::util::ser::Readable;
-use kormir::lightning::util::ser::Writeable;
 use kormir::storage::OracleEventData;
 use kormir::storage::Storage;
 use kormir::OracleEvent;
+use kormir::Writeable;
 use sqlx::{PgPool, Pool, Postgres};
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::Arc;
@@ -20,7 +20,15 @@ pub struct PostgresStorage {
 }
 
 impl PostgresStorage {
-    pub async fn new(pool: PgPool, oracle_public_key: XOnlyPublicKey) -> anyhow::Result<Self> {
+    pub async fn new(
+        pool: PgPool,
+        oracle_public_key: XOnlyPublicKey,
+        migrate: bool,
+    ) -> anyhow::Result<Self> {
+        if migrate {
+            sqlx::migrate!();
+        }
+
         let current_index =
             sqlx::query!("SELECT COALESCE(MAX(index), 0) as max_index FROM event_nonces")
                 .fetch_one(&pool)

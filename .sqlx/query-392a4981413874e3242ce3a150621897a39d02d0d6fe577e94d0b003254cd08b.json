@@ -1,0 +1,44 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT \n                event_id, announcement_signature, oracle_event,\n                announcement_event_id, attestation_event_id\n            FROM events\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "event_id",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 1,
+        "name": "announcement_signature",
+        "type_info": "Bytea"
+      },
+      {
+        "ordinal": 2,
+        "name": "oracle_event",
+        "type_info": "Bytea"
+      },
+      {
+        "ordinal": 3,
+        "name": "announcement_event_id",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 4,
+        "name": "attestation_event_id",
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      true,
+      true
+    ]
+  },
+  "hash": "392a4981413874e3242ce3a150621897a39d02d0d6fe577e94d0b003254cd08b"
+}

@@ -177,9 +177,11 @@ mod tests {
         let key_pair = Keypair::from_secret_key(&secp, &secret_key);
         let pubkey = key_pair.x_only_public_key();
 
-        let storage = PostgresStorage::new(pool, pubkey.0).await.unwrap();
-        let oracle = ErnestOracle::new(storage, key_pair).unwrap();
+        let storage = PostgresStorage::new(pool.clone(), pubkey.0, false)
+            .await
+            .unwrap();
         let mempool = MempoolClient::new(BASE_URL.to_string());
+        let oracle = ErnestOracle::new(storage, pool, key_pair, mempool.clone()).unwrap();
 
         Arc::new(OracleState { oracle, mempool })
     }

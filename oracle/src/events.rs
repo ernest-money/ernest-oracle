@@ -1,8 +1,11 @@
+use std::{fmt::Display, str::FromStr};
+
 use crate::mempool::{MempoolClient, TimePeriod};
 use anyhow::anyhow;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
 pub enum EventType {
     Hashrate,
     FeeRate,
@@ -10,15 +13,26 @@ pub enum EventType {
     DificultyAdjustment,
 }
 
-impl TryFrom<&str> for EventType {
-    type Error = anyhow::Error;
+impl Display for EventType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            EventType::Hashrate => write!(f, "hashrate"),
+            EventType::FeeRate => write!(f, "fee-rate"),
+            EventType::BlockReward => write!(f, "block-reward"),
+            EventType::DificultyAdjustment => write!(f, "difficulty"),
+        }
+    }
+}
 
-    fn try_from(value: &str) -> Result<Self, Self::Error> {
+impl FromStr for EventType {
+    type Err = anyhow::Error;
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
         match value {
-            "sats/block" => Ok(Self::BlockReward),
+            "block-reward" => Ok(Self::BlockReward),
             "difficulty" => Ok(Self::DificultyAdjustment),
             "fee-rate" => Ok(Self::FeeRate),
-            "H/s" => Ok(Self::Hashrate),
+            "hashrate" => Ok(Self::Hashrate),
             _ => Err(anyhow!("Unit not supported.".to_string())),
         }
     }
@@ -29,7 +43,7 @@ impl EventType {
         unit: &str,
         mempool_client: &MempoolClient,
     ) -> anyhow::Result<i64> {
-        let event_type: EventType = unit.try_into()?;
+        let event_type = EventType::from_str(unit)?;
         let mempool = match event_type {
             EventType::BlockReward => {
                 mempool_client
@@ -43,6 +57,25 @@ impl EventType {
             }
             EventType::FeeRate => mempool_client.get_block_fees(TimePeriod::ThreeMonths).await,
             EventType::Hashrate => mempool_client.get_hashrate(TimePeriod::ThreeMonths).await,
+        }?;
+
+        Ok(mempool.ceil() as i64)
+    }
+
+    pub async fn outcome(&self, mempool_client: &MempoolClient) -> anyhow::Result<i64> {
+        let mempool = match self {
+            EventType::BlockReward => {
+                mempool_client
+                    .get_block_rewards(TimePeriod::ThreeMonths)
+                    .await
+            }
+            EventType::DificultyAdjustment => {
+                mempool_client
+                    .get_difficulty_adjustments(TimePeriod::ThreeMonths)
+                    .await
+            }
+            EventType::FeeRate => mempool_client.get_block_fees(TimePeriod::ThreeMonths).await,
+            EventType::Hashrate => mempool_client.get_hashrate(TimePeriod::All).await,
         }?;
 
         Ok(mempool.ceil() as i64)
@@ -62,7 +95,7 @@ impl From<EventType> for EventParams {
             EventType::BlockReward => Self {
                 event_type: value,
                 nb_digits: 20,
-                unit: "sats/block".to_string(),
+                unit: "block-reward".to_string(),
             },
             EventType::DificultyAdjustment => Self {
                 event_type: value,
@@ -77,7 +110,7 @@ impl From<EventType> for EventParams {
             EventType::Hashrate => Self {
                 event_type: value,
                 nb_digits: 20,
-                unit: "H/s".to_string(),
+                unit: "hashrate".to_string(),
             },
         }
     }

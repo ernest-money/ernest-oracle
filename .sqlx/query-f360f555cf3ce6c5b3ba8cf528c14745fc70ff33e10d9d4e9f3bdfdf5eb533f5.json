@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n                UPDATE event_nonces\n                SET outcome = $1, signature = $2\n                WHERE id = $3\n                ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Bytea",
+        "Int4"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "f360f555cf3ce6c5b3ba8cf528c14745fc70ff33e10d9d4e9f3bdfdf5eb533f5"
+}

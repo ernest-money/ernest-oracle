@@ -1,0 +1,148 @@
+{
+  "test_vectors": [
+    {
+      "name": "Single Parameter Linear Test",
+      "contract": {
+        "id": "test1",
+        "parameters": [
+          {
+            "data_type": "hashrate",
+            "threshold": 20000,
+            "range": 100000,
+            "is_above_threshold": true,
+            "transformation": "linear",
+            "weight": 1.0
+          }
+        ],
+        "combination_method": "multiply",
+        "max_normalized_value": 1000
+      },
+      "mock_inputs": {
+        "hashrate": 25203
+      },
+      "expected": {
+        "normalized_values": [0.05203],
+        "transformed_values": [0.05203],
+        "combined_score": 0.05203,
+        "attestation_value": 52
+      }
+    },
+    {
+      "name": "Two Parameter Linear Test",
+      "contract": {
+        "id": "test2",
+        "parameters": [
+          {
+            "data_type": "hashrate",
+            "threshold": 2000000000000000,
+            "range": 1000000000000000,
+            "is_above_threshold": true,
+            "transformation": "linear",
+            "weight": 1.0
+          },
+          {
+            "data_type": "block-reward",
+            "threshold": 20000000,
+            "range": 10000000,
+            "is_above_threshold": true,
+            "transformation": "linear",
+            "weight": 1.0
+          }
+        ],
+        "combination_method": "multiply",
+        "max_normalized_value": 1000
+      },
+      "mock_inputs": {
+        "hashrate": 2520332473552123,
+        "block-rewards": 24212890
+      },
+      "expected": {
+        "normalized_values": [0.52, 0.421289],
+        "transformed_values": [0.52, 0.421289],
+        "combined_score": 0.21907,
+        "attestation_value": 219
+      }
+    },
+    {
+      "name": "Single Parameter Quadratic Test",
+      "contract": {
+        "id": "test3",
+        "parameters": [
+          {
+            "data_type": "hashrate",
+            "threshold": 2000000000000000,
+            "range": 1000000000000000,
+            "is_above_threshold": true,
+            "transformation": "quadratic",
+            "weight": 1.0
+          }
+        ],
+        "combination_method": "multiply",
+        "max_normalized_value": 1000
+      },
+      "mock_inputs": {
+        "hashrate": 2520332473552123
+      },
+      "expected": {
+        "normalized_values": [0.52],
+        "transformed_values": [0.2704],
+        "combined_score": 0.2704,
+        "attestation_value": 270
+      }
+    },
+    {
+      "name": "Below Threshold Test",
+      "contract": {
+        "id": "test4",
+        "parameters": [
+          {
+            "data_type": "hashrate",
+            "threshold": 3000000000000000,
+            "range": 1000000000000000,
+            "is_above_threshold": true,
+            "transformation": "linear",
+            "weight": 1.0
+          }
+        ],
+        "combination_method": "multiply",
+        "max_normalized_value": 1000
+      },
+      "mock_inputs": {
+        "hashrate": 2520332473552123
+      },
+      "expected": {
+        "normalized_values": [0.0],
+        "transformed_values": [0.0],
+        "combined_score": 0.0,
+        "attestation_value": 0
+      }
+    },
+    {
+      "name": "Inverse Threshold Test",
+      "contract": {
+        "id": "test5",
+        "parameters": [
+          {
+            "data_type": "block-reward",
+            "threshold": 30000000,
+            "range": 10000000,
+            "is_above_threshold": false,
+            "transformation": "linear",
+            "weight": 1.0
+          }
+        ],
+        "combination_method": "multiply",
+        "max_normalized_value": 1000
+      },
+      "mock_inputs": {
+        "block-rewards": 24212890
+      },
+      "expected": {
+        "normalized_values": [0.578711],
+        "transformed_values": [0.578711],
+        "combined_score": 0.578711,
+        "attestation_value": 578
+      }
+    }
+  ]
+}

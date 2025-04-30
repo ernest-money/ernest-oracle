@@ -1,0 +1,34 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT index, outcome, signature\n            FROM event_nonces\n            WHERE event_id = $1\n            ORDER BY index\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "index",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "outcome",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 2,
+        "name": "signature",
+        "type_info": "Bytea"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      true,
+      true
+    ]
+  },
+  "hash": "6ec3b4b9a4e6aca7ff1e9ca5e66a83411058f54df4a24e58d8374e4ddb73771d"
+}

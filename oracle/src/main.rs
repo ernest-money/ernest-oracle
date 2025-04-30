@@ -2,8 +2,10 @@
 mod events;
 mod mempool;
 mod oracle;
+mod parlay;
 mod routes;
 mod storage;
+mod test_util;
 mod watcher;
 
 use axum::{
@@ -60,9 +62,9 @@ async fn main() -> anyhow::Result<()> {
     let key_pair = Keypair::from_secret_key(&secp, &secret_key);
     let pubkey = key_pair.x_only_public_key();
 
-    let storage = PostgresStorage::new(pool, pubkey.0).await?;
-    let oracle = ErnestOracle::new(storage, key_pair)?;
+    let storage = PostgresStorage::new(pool.clone(), pubkey.0, true).await?;
     let mempool = MempoolClient::new(BASE_URL.to_string());
+    let oracle = ErnestOracle::new(storage, pool, key_pair, mempool.clone())?;
 
     let state = Arc::new(OracleState { oracle, mempool });
 

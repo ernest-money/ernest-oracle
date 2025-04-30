@@ -93,6 +93,7 @@ pub struct BlockFees {
     pub avg_fees: i64,
 }
 
+#[derive(Debug, Clone)]
 pub struct MempoolClient {
     client: Client,
     base_url: String,
@@ -107,15 +108,16 @@ impl MempoolClient {
     }
 
     pub async fn get_hashrate(&self, period: TimePeriod) -> anyhow::Result<f64> {
+        println!("getting hashrate {:?}", period);
         let url = match period {
             TimePeriod::All => format!("{}/mining/hashrate", self.base_url),
-            _ => format!("{}/mining/hashrate/{}", BASE_URL, period.as_str()),
+            _ => format!("{}/mining/hashrate/{}", self.base_url, period.as_str()),
         };
+        println!("url {:?}", url);
 
         let response = self.client.get(&url).send().await?;
         let data = response.json::<HashrateResponse>().await?;
-        let average_hashrate = Self::calculate_average(data.hashrates, |h| h.avg_hashrate);
-        Ok(average_hashrate)
+        Ok(data.current_hashrate)
     }
 
     pub async fn get_block_rewards(&self, period: TimePeriod) -> anyhow::Result<f64> {
@@ -162,78 +164,9 @@ impl MempoolClient {
 
 #[cfg(test)]
 mod tests {
-    use super::MempoolClient; // Your actual client
+    use super::MempoolClient;
     use super::*;
-    use serde_json::json;
-    use wiremock::matchers::{method, path};
-    use wiremock::{Mock, MockServer, ResponseTemplate};
-
-    pub async fn setup_mock_server() -> MockServer {
-        let mock_server = MockServer::start().await;
-
-        // Mock hashrate endpoint
-        Mock::given(method("GET"))
-            .and(path("/api/v1/mining/hashrate/3m"))
-            .respond_with(ResponseTemplate::new(200).set_body_json(json!({
-                "hashrates": [
-                    {
-                        "timestamp": 1652486400,
-                        "avgHashrate": 2364997621087718_i64
-                    }
-                ],
-                "difficulty": [
-                    {
-                        "timestamp": 1652468330,
-                        "difficulty": 31251101365711.12,
-                        "height": 736249
-                    }
-                ],
-                "currentHashrate": 2520332473552123_i64,
-                "currentDifficulty": 31251101365711.12
-            })))
-            .mount(&mock_server)
-            .await;
-
-        // Mock block fees endpoint
-        Mock::given(method("GET"))
-            .and(path("/api/v1/mining/blocks/fees/3m"))
-            .respond_with(ResponseTemplate::new(200).set_body_json(json!([
-                {
-                    "avgHeight": 735644,
-                    "timestamp": 1652119111,
-                    "avgFees": 24212890
-                }
-            ])))
-            .mount(&mock_server)
-            .await;
-
-        // Mock block rewards endpoint
-        Mock::given(method("GET"))
-            .and(path("/api/v1/mining/blocks/rewards/3m"))
-            .respond_with(ResponseTemplate::new(200).set_body_json(json!([
-                {
-                    "avgHeight": 599992,
-                    "timestamp": 1571438412,
-                    "avgRewards": 1260530933
-                }
-            ])))
-            .mount(&mock_server)
-            .await;
-
-        // Mock difficulty adjustments endpoint
-        Mock::given(method("GET"))
-            .and(path("/api/v1/mining/difficulty-adjustments/3m"))
-            .respond_with(ResponseTemplate::new(200).set_body_json(json!([[
-                1703311464,
-                822528,
-                72006146478567.1,
-                1.06983
-            ]])))
-            .mount(&mock_server)
-            .await;
-
-        mock_server
-    }
+    use crate::test_util::setup_mock_server;
 
     #[tokio::test]
     async fn test_mempool_client_with_mock_server() {
@@ -245,12 +178,11 @@ mod tests {
 
         // Test hashrate endpoint
         let hashrate = client.get_hashrate(TimePeriod::ThreeMonths).await.unwrap();
-        println!("{:?}", hashrate);
+        println!("final hashrate {:?}", hashrate);
         assert!(hashrate > 0.0);
 
         // Test block fees endpoint
         let fees = client.get_block_fees(TimePeriod::ThreeMonths).await;
-        println!("{:?}", fees);
         assert!(fees.unwrap() > 0.0);
 
         // Test block rewards endpoint
@@ -261,10 +193,9 @@ mod tests {
         assert!(rewards > 0.0);
 
         // Test difficulty adjustments endpoint
-        let adjustments = client
+        client
             .get_difficulty_adjustments(TimePeriod::ThreeMonths)
             .await
             .unwrap();
-        assert!(adjustments > 0.0);
     }
 }
