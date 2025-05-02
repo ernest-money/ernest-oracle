@@ -11,8 +11,10 @@ axum-macros = "0.4.2"
 bitcoin = { version = "0.32.5", features = ["rand"] }
 chrono = "0.4.38"
 clap = { version = "4.5.37", features = ["derive"] }
-ddk = "0.0.16"
-ddk-manager = "0.7.5"
+# ddk = "0.0.16"
+# ddk-manager = "0.7.5"
+ddk = { version = "0.0.16", git = "https://github.com/bennyhodl/dlcdevkit", rev = "8a19bc6", features = ["postgres", "nostr"]}
+ddk-manager = { version = "0.7.5", git = "https://github.com/bennyhodl/dlcdevkit", rev = "8a19bc6", features = ["use-serde"] }
 dlc-messages = "0.7.0"
 dotenv = "0.15.0"
 env_logger = "0.11.5"
@@ -23,7 +25,7 @@ log = "0.4.22"
 reqwest = { version = "0.12.9", features = ["json"] }
 serde = "1.0.215"
 serde_json = "1.0.133"
-sqlx = { version = "0.8.2", features = ["derive", "json", "macros", "postgres", "runtime-tokio"] }
+sqlx = { version = "0.8.3", features = ["derive", "json", "macros", "postgres", "runtime-tokio"] }
 tokio = { version = "1.42.0", features = ["full"] }
 uuid = { version = "1.11.0", features = ["v4"] }
 wiremock = "0.6.2"
