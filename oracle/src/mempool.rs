@@ -108,12 +108,10 @@ impl MempoolClient {
     }
 
     pub async fn get_hashrate(&self, period: TimePeriod) -> anyhow::Result<f64> {
-        println!("getting hashrate {:?}", period);
         let url = match period {
             TimePeriod::All => format!("{}/mining/hashrate", self.base_url),
             _ => format!("{}/mining/hashrate/{}", self.base_url, period.as_str()),
         };
-        println!("url {:?}", url);
 
         let response = self.client.get(&url).send().await?;
         let data = response.json::<HashrateResponse>().await?;
@@ -178,7 +176,6 @@ mod tests {
 
         // Test hashrate endpoint
         let hashrate = client.get_hashrate(TimePeriod::ThreeMonths).await.unwrap();
-        println!("final hashrate {:?}", hashrate);
         assert!(hashrate > 0.0);
 
         // Test block fees endpoint

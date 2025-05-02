@@ -4,12 +4,15 @@ use crate::mempool::{MempoolClient, TimePeriod};
 use anyhow::anyhow;
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
+#[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
+#[serde(rename_all = "lowercase")]
 pub enum EventType {
     Hashrate,
+    #[serde(rename = "fee-rate")]
     FeeRate,
+    #[serde(rename = "block-reward")]
     BlockReward,
+    #[serde(rename = "difficulty")]
     DificultyAdjustment,
 }
 

@@ -1,12 +1,18 @@
-use crate::{events::EventType, mempool::MempoolClient, parlay, storage::PostgresStorage};
+use crate::{
+    events::EventType,
+    mempool::MempoolClient,
+    parlay::{self, CombinationMethod, ParlayParameter},
+    storage::PostgresStorage,
+};
 use bitcoin::{
     bip32::Xpriv,
     key::{Keypair, Secp256k1},
     secp256k1::All,
     Network, XOnlyPublicKey,
 };
-use kormir::Oracle;
+use kormir::{Oracle, OracleAnnouncement};
 use sqlx::PgPool;
+use uuid::Uuid;
 
 pub struct ErnestOracle {
     pub oracle: Oracle<PostgresStorage>,
@@ -35,16 +41,47 @@ impl ErnestOracle {
         })
     }
 
+    pub async fn create_parlay_announcement(
+        &self,
+        parameters: Vec<ParlayParameter>,
+        combination_method: CombinationMethod,
+        max_normalized_value: Option<u64>,
+        event_maturity_epoch: u32,
+    ) -> anyhow::Result<OracleAnnouncement> {
+        if parameters.len() == 0 {
+            return Err(anyhow::anyhow!("Parameters must be non-empty"));
+        }
+
+        let max_normalized_value = max_normalized_value.unwrap_or(10000);
+
+        let id = Uuid::new_v4().to_string();
+        parlay::ParlayContract::new(
+            self.pool.clone(),
+            id.clone(),
+            parameters,
+            combination_method,
+            max_normalized_value,
+        )
+        .await?;
+        let announcement = self
+            .oracle
+            .create_numeric_event(id, 20, false, 2, "parlay".to_string(), event_maturity_epoch)
+            .await?;
+        Ok(announcement)
+    }
+
+    pub async fn get_parlay_contract(&self, id: String) -> anyhow::Result<parlay::ParlayContract> {
+        let contract = parlay::get_parlay_contract(self.pool.clone(), id).await?;
+        Ok(contract)
+    }
+
     pub async fn attest_parlay_contract(&self, id: String) -> anyhow::Result<u64> {
         let contract = parlay::get_parlay_contract(self.pool.clone(), id).await?;
         let mut scores = Vec::new();
         for parameter in contract.parameters {
             let outcome = EventType::outcome(&parameter.data_type, &self.mempool).await?;
-            println!("outcome {:?}", outcome);
             let normalized_value = parameter.normalize_parameter(outcome);
-            println!("normalized value {:?}", normalized_value);
             let transformed_value = parameter.apply_transformation(normalized_value);
-            println!("transformed value {:?}", transformed_value);
             // TODO: assert weights are correct.
             // let score = transformed_value * parameter.weight;
             scores.push(transformed_value);
@@ -100,8 +137,6 @@ mod tests {
                 .attest_parlay_contract(id.clone())
                 .await
                 .expect("could not attest parlay contract");
-            println!("attestable value {:?}", attestable_value);
-            println!("expected {:?}", test_vector.expected.attestation_value);
 
             assert_eq!(attestable_value, test_vector.expected.attestation_value);
         }

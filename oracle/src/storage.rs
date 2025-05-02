@@ -125,7 +125,10 @@ impl Storage for PostgresStorage {
         announcement: OracleAnnouncement,
         indexes: Vec<u32>,
     ) -> Result<String, Error> {
-        let mut tx = self.pool.begin().await.map_err(|_| Error::StorageFailure)?;
+        let mut tx = self.pool.begin().await.map_err(|e| {
+            eprintln!("Could not begin transaction. error={}", e.to_string());
+            Error::StorageFailure
+        })?;
 
         let is_enum = matches!(
             announcement.oracle_event.event_descriptor,
@@ -150,7 +153,10 @@ impl Storage for PostgresStorage {
         )
         .execute(&mut *tx)
         .await
-        .map_err(|_| Error::StorageFailure)?;
+        .map_err(|e| {
+            eprintln!("Could not execute query. error={}", e.to_string());
+            Error::StorageFailure
+        })?;
 
         for (index, nonce) in indexes
             .into_iter()
@@ -170,7 +176,13 @@ impl Storage for PostgresStorage {
             )
             .execute(&mut *tx)
             .await
-            .map_err(|_| Error::StorageFailure)?;
+            .map_err(|e| {
+                eprintln!(
+                    "Could not execute query for nonces. error={}",
+                    e.to_string()
+                );
+                Error::StorageFailure
+            })?;
         }
 
         tx.commit().await.map_err(|_| Error::StorageFailure)?;

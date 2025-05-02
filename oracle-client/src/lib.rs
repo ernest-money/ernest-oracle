@@ -6,7 +6,8 @@ use ddk_manager::Oracle as DlcOracle;
 use dlc_messages::oracle_msgs::{OracleAnnouncement, OracleAttestation};
 use kormir::storage::OracleEventData;
 use reqwest::Client;
-use types::{oracle_err_to_manager_err, CreateEvent, OracleError, OracleInfo, SignEvent};
+use types::{OracleError, OracleInfo, SignEvent};
+
 pub struct ErnestOracle {
     client: Client,
     base_url: String,
@@ -57,7 +58,7 @@ impl ErnestOracle {
     }
     pub async fn create_event(
         &self,
-        event: CreateEvent,
+        event: crate::types::CreateEvent,
     ) -> Result<OracleAnnouncement, reqwest::Error> {
         let url = format!("{}/event", self.base_url);
         let response = self
@@ -113,8 +114,7 @@ impl ErnestOracle {
     }
 
     pub async fn list_events(&self) -> Result<Vec<OracleEventData>, OracleError> {
-        let response = self.get("events").await?;
-        Ok(response)
+        self.get("events").await?
     }
 }
 
@@ -148,4 +148,8 @@ impl DlcOracle for ErnestOracle {
             .await
             .map_err(oracle_err_to_manager_err)
     }
+}
+
+pub fn oracle_err_to_manager_err(e: OracleError) -> ddk_manager::error::Error {
+    ddk_manager::error::Error::OracleError(e.reason.to_string())
 }

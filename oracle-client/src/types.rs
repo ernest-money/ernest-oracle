@@ -6,10 +6,6 @@ pub struct OracleError {
     pub reason: String,
 }
 
-pub fn oracle_err_to_manager_err(e: OracleError) -> ddk_manager::error::Error {
-    ddk_manager::error::Error::OracleError(e.reason.to_string())
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum EventType {
     Hashrate,

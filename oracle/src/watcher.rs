@@ -3,9 +3,9 @@ use std::{sync::Arc, time::Duration};
 use chrono::Utc;
 use kormir::{storage::OracleEventData, EventDescriptor};
 
-use crate::{events::EventType, OracleState};
+use crate::{events::EventType, OracleServerState};
 
-pub async fn sign_matured_events_loop(state: Arc<OracleState>) {
+pub async fn sign_matured_events_loop(state: Arc<OracleServerState>) {
     let mut timer = tokio::time::interval(Duration::from_secs(60));
     loop {
         timer.tick().await;
@@ -14,7 +14,7 @@ pub async fn sign_matured_events_loop(state: Arc<OracleState>) {
     }
 }
 
-async fn sign_matured_events(state: Arc<OracleState>) {
+async fn sign_matured_events(state: Arc<OracleServerState>) {
     let Ok(events) = state.oracle.oracle.storage.list_events().await else {
         return log::error!("Failed to get all events.");
     };

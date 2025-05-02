@@ -44,7 +44,7 @@ pub async fn setup_mock_server() -> MockServer {
             ],
             "difficulty": [
                 {
-                    "timestamp": 1652468330,
+                    "time": 1652468330,
                     "difficulty": 31251101365711.12,
                     "height": 736249
                 }

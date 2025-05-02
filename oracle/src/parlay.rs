@@ -8,7 +8,7 @@ use sqlx::prelude::FromRow;
 use sqlx::PgPool;
 use sqlx::Row;
 
-#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow, PartialEq)]
 pub struct ParlayParameter {
     /// The type of event to be monitored from Bitcoin core
     pub data_type: EventType,
@@ -26,7 +26,6 @@ pub struct ParlayParameter {
 
 impl ParlayParameter {
     pub fn normalize_parameter(&self, value: i64) -> f64 {
-        println!("value {:?}", value);
         if self.is_above_threshold {
             // Parameter must EXCEED threshold (e.g., hash rate > X)
             if value <= self.threshold as i64 {
@@ -36,10 +35,6 @@ impl ParlayParameter {
                 // Above threshold - normalize based on distance
                 let distance = value - self.threshold as i64;
                 let normalized = (distance as f64) / (self.range as f64);
-                println!(
-                    "normalized {:?} {:?} {:?}",
-                    normalized, distance, self.range
-                );
                 // Cap at 1.0 for values beyond threshold + range
                 return normalized.min(1.0);
             }
@@ -69,7 +64,7 @@ impl ParlayParameter {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub enum TransformationFunction {
     Linear,
@@ -106,7 +101,7 @@ impl FromStr for TransformationFunction {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub enum CombinationMethod {
     Multiply,
@@ -143,7 +138,7 @@ impl FromStr for CombinationMethod {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow, PartialEq)]
 pub struct ParlayContract {
     /// The id of the contract used for the announcement
     pub id: String,
@@ -265,11 +260,22 @@ fn parlay_parameter_from_row(row: &PgRow) -> anyhow::Result<ParlayParameter> {
 
 pub fn combine_scores(
     events: &[f64],
-    _weights: &[f64],
+    weights: &[f64],
     combination_method: &CombinationMethod,
 ) -> f64 {
     match combination_method {
         CombinationMethod::Multiply => events.iter().product(),
+        CombinationMethod::WeightedAverage => {
+            let sum: f64 = events.iter().zip(weights).map(|(e, w)| e * w).sum();
+            let total_weight: f64 = weights.iter().sum();
+            sum / total_weight
+        }
+        CombinationMethod::GeometricMean => {
+            let product: f64 = events.iter().product();
+            product.powf(1.0 / events.len() as f64)
+        }
+        // CombinationMethod::Min => events.iter().min().unwrap_or(&0.0).clone(),
+        // CombinationMethod::Max => events.iter().max().unwrap_or(&0.0).clone(),
         _ => todo!("Method not available yet"),
     }
 }
