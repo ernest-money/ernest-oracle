@@ -41,7 +41,7 @@ impl ErnestOracleClient {
     pub async fn new(base_url: &str) -> Result<ErnestOracleClient, OracleServerError> {
         let client = Client::new();
         let info = client
-            .get(format!("{}/info", &base_url))
+            .get(format!("{}/api/info", &base_url))
             .send()
             .await
             .map_err(|e| OracleServerError {
@@ -63,7 +63,8 @@ impl ErnestOracleClient {
     where
         T: serde::de::DeserializeOwned,
     {
-        let url = format!("{}/{}", self.base_url, path);
+        let url = format!("{}{}", self.base_url, path);
+        println!("url: {}", url);
         let response = self
             .client
             .get(url)
@@ -83,7 +84,7 @@ impl ErnestOracleClient {
         &self,
         event: CreateEvent,
     ) -> Result<OracleAnnouncement, reqwest::Error> {
-        let url = format!("{}/create", self.base_url);
+        let url = format!("{}/api/create", self.base_url);
         let response = self
             .client
             .post(&url)
@@ -99,7 +100,7 @@ impl ErnestOracleClient {
         &self,
         event_id: &str,
     ) -> Result<OracleAnnouncement, OracleServerError> {
-        let path = format!("announcement?event_id={}", event_id);
+        let path = format!("/api/announcement?event_id={}", event_id);
         let response = self.get::<OracleAnnouncement>(&path).await?;
         Ok(response)
     }
@@ -108,7 +109,7 @@ impl ErnestOracleClient {
         &self,
         event_id: &str,
     ) -> Result<OracleAttestation, OracleServerError> {
-        let path = format!("attestation/{}", event_id);
+        let path = format!("/api/attestation?event_id={}", event_id);
         let response = self.get::<OracleAttestation>(&path).await?;
         Ok(response)
     }
@@ -117,15 +118,16 @@ impl ErnestOracleClient {
         &self,
         event_id: &str,
     ) -> Result<ParlayContract, OracleServerError> {
-        let path = format!("parlay?event_id={}", event_id);
+        let path = format!("/api/parlay?event_id={}", event_id);
         let response = self.get::<ParlayContract>(&path).await?;
         Ok(response)
     }
     async fn sign_event(&self, event: SignEvent) -> Result<OracleAttestation, OracleServerError> {
-        let url = format!("{}/event/{}/sign", self.base_url, event.event_id);
+        let url = format!("{}/api/sign-event", self.base_url);
         let response = self
             .client
             .post(&url)
+            .json(&event)
             .send()
             .await
             .map_err(|e| OracleServerError {
@@ -140,12 +142,12 @@ impl ErnestOracleClient {
     }
 
     pub async fn get_oracle_info(&self) -> Result<OracleInfo, OracleServerError> {
-        let response = self.get::<OracleInfo>("info").await?;
+        let response = self.get::<OracleInfo>("/api/info").await?;
         Ok(response)
     }
 
     pub async fn list_events(&self) -> Result<Vec<OracleEventData>, OracleServerError> {
-        let events = self.get::<Vec<OracleEventData>>("list-events").await?;
+        let events = self.get::<Vec<OracleEventData>>("/api/list-events").await?;
         Ok(events)
     }
 }
@@ -220,6 +222,14 @@ mod tests {
         };
         let announcement = client.create_event(event.clone()).await.unwrap();
         (announcement, event)
+    }
+
+    #[tokio::test]
+    async fn oracle_info() {
+        let oracle_url = std::env::var("ORACLE_URL").expect("ORACLE_URL must be set");
+        let client = ErnestOracleClient::new(&oracle_url).await.unwrap();
+        let info = client.get_oracle_info().await;
+        assert!(info.is_ok())
     }
 
     #[tokio::test]
