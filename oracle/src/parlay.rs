@@ -274,9 +274,14 @@ pub fn combine_scores(
             let product: f64 = events.iter().product();
             product.powf(1.0 / events.len() as f64)
         }
-        // CombinationMethod::Min => events.iter().min().unwrap_or(&0.0).clone(),
-        // CombinationMethod::Max => events.iter().max().unwrap_or(&0.0).clone(),
-        _ => todo!("Method not available yet"),
+        CombinationMethod::Min => {
+            if events.is_empty() {
+                0.0
+            } else {
+                events.iter().copied().fold(f64::INFINITY, f64::min)
+            }
+        }
+        CombinationMethod::Max => events.iter().copied().fold(0.0, f64::max),
     }
 }
 

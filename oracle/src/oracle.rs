@@ -53,6 +53,7 @@ impl ErnestOracle {
         }
 
         let max_normalized_value = max_normalized_value.unwrap_or(10000);
+        let (nb_digits, _) = calculate_oracle_parameters(max_normalized_value);
 
         let id = Uuid::new_v4().to_string();
         parlay::ParlayContract::new(
@@ -65,7 +66,14 @@ impl ErnestOracle {
         .await?;
         let announcement = self
             .oracle
-            .create_numeric_event(id, 20, false, 2, "parlay".to_string(), event_maturity_epoch)
+            .create_numeric_event(
+                id,
+                nb_digits,
+                false,
+                2,
+                "parlay".to_string(),
+                event_maturity_epoch,
+            )
             .await?;
         Ok(announcement)
     }
@@ -91,6 +99,27 @@ impl ErnestOracle {
             parlay::convert_to_attestable_value(combined_score, contract.max_normalized_value);
         Ok(attestable_value)
     }
+}
+
+/// Calculate oracle parameters from max normalized value
+///
+/// Returns a tuple with:
+/// - nb_digits: Number of binary digits needed for the oracle
+/// - oracle_max_value: Maximum value the oracle can attest to (2^nb_digits - 1)
+/// - max_normalized_value: The input value (for convenience)
+pub fn calculate_oracle_parameters(max_normalized_value: u64) -> (u16, u64) {
+    // Calculate the minimum number of bits needed to represent max_normalized_value
+    let nb_digits = if max_normalized_value == 0 {
+        1 // Handle edge case
+    } else {
+        // Find ceiling of log base 2
+        (max_normalized_value as f64).log2().ceil() as u16
+    };
+
+    // Calculate the maximum value the oracle can represent with nb_digits
+    let oracle_max_value = (1u64 << nb_digits) - 1;
+
+    (nb_digits, oracle_max_value)
 }
 
 #[cfg(test)]
