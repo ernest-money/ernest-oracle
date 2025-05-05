@@ -1,5 +1,5 @@
 #![allow(dead_code)]
-mod events;
+pub mod events;
 pub mod mempool;
 pub mod oracle;
 pub mod parlay;
@@ -7,6 +7,8 @@ pub mod routes;
 pub mod storage;
 mod test_util;
 pub mod watcher;
+
+use std::time::Duration;
 
 use bitcoin::XOnlyPublicKey;
 use ddk::Oracle;
@@ -39,7 +41,13 @@ pub struct ErnestOracleClient {
 
 impl ErnestOracleClient {
     pub async fn new(base_url: &str) -> Result<ErnestOracleClient, OracleServerError> {
-        let client = Client::new();
+        let client = Client::builder()
+            .timeout(Duration::from_secs(5))
+            .build()
+            .map_err(|e| OracleServerError {
+                reason: e.to_string(),
+            })?;
+
         let info = client
             .get(format!("{}/api/info", &base_url))
             .send()
