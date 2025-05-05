@@ -83,8 +83,14 @@ async fn main() -> anyhow::Result<()> {
                     transformed_value
                 })
                 .collect::<Vec<_>>();
+
+            let weights = contract
+                .parameters
+                .iter()
+                .map(|parameter| parameter.weight)
+                .collect::<Vec<_>>();
             let combined_score =
-                parlay::combine_scores(&outcomes, &[], &contract.combination_method);
+                parlay::combine_scores(&outcomes, &weights, &contract.combination_method);
             println!(
                 "combined score for contract {:?}: {:?}",
                 contract.id, combined_score
