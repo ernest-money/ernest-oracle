@@ -48,10 +48,10 @@ async fn main() -> anyhow::Result<()> {
 
     let state = Arc::new(OracleServerState { oracle, mempool });
 
-    let state_clone = state.clone();
-    tokio::spawn(async move {
-        ernest_oracle::watcher::sign_matured_events_loop(state_clone).await;
-    });
+    let _state_clone = state.clone();
+    // tokio::spawn(async move {
+    //     ernest_oracle::watcher::sign_matured_events_loop(state_clone).await;
+    // });
 
     let app = Router::new()
         .nest(
