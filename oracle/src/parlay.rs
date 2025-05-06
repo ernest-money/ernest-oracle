@@ -9,6 +9,7 @@ use sqlx::PgPool;
 use sqlx::Row;
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow, PartialEq)]
+#[serde(rename_all = "camelCase")]
 pub struct ParlayParameter {
     /// The type of event to be monitored from Bitcoin core
     pub data_type: EventType,
