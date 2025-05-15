@@ -8,6 +8,7 @@ use kormir::storage::OracleEventData;
 use kormir::storage::Storage;
 use kormir::OracleEvent;
 use kormir::Writeable;
+use sqlx::Row;
 use sqlx::{PgPool, Pool, Postgres};
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::Arc;
@@ -29,56 +30,78 @@ impl PostgresStorage {
             sqlx::migrate!();
         }
 
-        let current_index =
-            sqlx::query!("SELECT COALESCE(MAX(index), 0) as max_index FROM event_nonces")
-                .fetch_one(&pool)
-                .await?
-                .max_index
-                .unwrap_or(0) as u32;
+        let row = sqlx::query("SELECT COALESCE(MAX(index), 0) as max_index FROM event_nonces")
+            .fetch_one(&pool)
+            .await?;
+        let current_index: i32 = row.get("max_index");
 
         Ok(Self {
             pool,
             oracle_public_key,
-            current_index: Arc::new(AtomicU32::new(current_index + 1)),
+            current_index: Arc::new(AtomicU32::new(current_index as u32 + 1)),
         })
     }
 
     pub async fn list_events(&self) -> Result<Vec<OracleEventData>, Error> {
         let mut tx = self.pool.begin().await.map_err(|_| Error::StorageFailure)?;
 
-        let events = sqlx::query!(
+        let row = sqlx::query(
             r#"
             SELECT 
                 event_id, announcement_signature, oracle_event,
-                announcement_event_id, attestation_event_id
             FROM events
-            "#
+            "#,
         )
         .fetch_all(&mut *tx)
         .await
         .map_err(|_| Error::StorageFailure)?;
 
+        let events = row
+            .iter()
+            .map(|row| {
+                let event_id: String = row.get("event_id");
+                let announcement_signature: Vec<u8> = row.get("announcement_signature");
+                let oracle_event: Vec<u8> = row.get("oracle_event");
+
+                (event_id, announcement_signature, oracle_event)
+            })
+            .collect::<Vec<_>>();
+
         let mut oracle_events = Vec::with_capacity(events.len());
-        for event in events {
-            let nonces = sqlx::query!(
+        for (event_id, announcement_signature, oracle_event) in events {
+            let event_row = sqlx::query(
                 r#"
                 SELECT index, outcome, signature, nonce
                 FROM event_nonces
                 WHERE event_id = $1
                 ORDER BY index
                 "#,
-                event.event_id
             )
+            .bind(event_id.clone())
             .fetch_all(&mut *tx)
             .await
             .map_err(|_| Error::StorageFailure)?;
 
-            let indexes = nonces.iter().map(|n| n.index as u32).collect();
+            let nonces = event_row
+                .iter()
+                .map(|row| {
+                    let index: i32 = row.get("index");
+                    let outcome: Option<String> = row.get("outcome");
+                    let signature: Option<Vec<u8>> = row.get("signature");
+                    let nonce: Option<Vec<u8>> = row.get("nonce");
+                    (index, outcome, signature, nonce)
+                })
+                .collect::<Vec<_>>();
+
+            let indexes = nonces
+                .iter()
+                .map(|(index, _, _, _)| *index as u32)
+                .collect();
 
             let signatures = nonces
                 .into_iter()
-                .filter_map(|n| {
-                    if let (Some(outcome), Some(sig)) = (n.outcome, n.signature) {
+                .filter_map(|(_, outcome, sig, _)| {
+                    if let (Some(outcome), Some(sig)) = (outcome, sig) {
                         Some((outcome, Signature::from_slice(&sig).ok()?))
                     } else {
                         None
@@ -86,17 +109,17 @@ impl PostgresStorage {
                 })
                 .collect();
 
-            let oracle_event = oracle_event(&event.oracle_event);
+            let oracle_event = to_oracle_event(&oracle_event);
 
             let announcement = OracleAnnouncement {
-                announcement_signature: Signature::from_slice(&event.announcement_signature)
+                announcement_signature: Signature::from_slice(&announcement_signature)
                     .map_err(|_| Error::StorageFailure)?,
                 oracle_public_key: self.oracle_public_key,
                 oracle_event,
             };
 
             let data = OracleEventData {
-                event_id: event.event_id,
+                event_id,
                 announcement,
                 indexes,
                 signatures,
@@ -137,7 +160,7 @@ impl Storage for PostgresStorage {
 
         let event_id = announcement.oracle_event.event_id.clone();
 
-        sqlx::query!(
+        sqlx::query(
             r#"
             INSERT INTO events (
                 event_id, announcement_signature, oracle_event,
@@ -145,12 +168,12 @@ impl Storage for PostgresStorage {
             )
             VALUES ($1, $2, $3, $4, $5)
             "#,
-            event_id,
-            announcement.announcement_signature.encode(),
-            announcement.oracle_event.encode(),
-            &announcement.oracle_event.event_id,
-            is_enum
         )
+        .bind(event_id.clone())
+        .bind(announcement.announcement_signature.encode())
+        .bind(announcement.oracle_event.encode())
+        .bind(&announcement.oracle_event.event_id)
+        .bind(is_enum)
         .execute(&mut *tx)
         .await
         .map_err(|e| {
@@ -162,18 +185,18 @@ impl Storage for PostgresStorage {
             .into_iter()
             .zip(announcement.oracle_event.oracle_nonces)
         {
-            sqlx::query!(
+            sqlx::query(
                 r#"
                 INSERT INTO event_nonces (
                     id, event_id, index, nonce
                 )
                 VALUES ($1, $2, $3, $4)
                 "#,
-                index as i32,
-                event_id,
-                index as i32,
-                &nonce.serialize()
             )
+            .bind(index as i32)
+            .bind(event_id.clone())
+            .bind(index as i32)
+            .bind(&nonce.serialize())
             .execute(&mut *tx)
             .await
             .map_err(|e| {
@@ -196,7 +219,7 @@ impl Storage for PostgresStorage {
     ) -> Result<OracleEventData, Error> {
         let mut tx = self.pool.begin().await.map_err(|_| Error::StorageFailure)?;
 
-        let event = match sqlx::query!(
+        let row = match sqlx::query(
             r#"
             SELECT 
                 event_id, announcement_signature, oracle_event,
@@ -204,8 +227,8 @@ impl Storage for PostgresStorage {
             FROM events
             WHERE event_id = $1
             "#,
-            event_id
         )
+        .bind(event_id.clone())
         .fetch_optional(&mut *tx)
         .await
         .map_err(|_| Error::StorageFailure)?
@@ -214,48 +237,61 @@ impl Storage for PostgresStorage {
             None => return Err(Error::StorageFailure),
         };
 
-        let nonces = sqlx::query!(
+        let event_id: String = row.get("event_id");
+        let announcement_signature: Vec<u8> = row.get("announcement_signature");
+        let oracle_event: Vec<u8> = row.get("oracle_event");
+
+        let row = sqlx::query(
             r#"
-            SELECT id, index, nonce
+            SELECT id, index
             FROM event_nonces
             WHERE event_id = $1
             ORDER BY index
             "#,
-            event_id
         )
+        .bind(event_id.clone())
         .fetch_all(&mut *tx)
         .await
         .map_err(|_| Error::StorageFailure)?;
+
+        let nonces = row
+            .iter()
+            .map(|row| {
+                let id: i32 = row.get("id");
+                let index: i32 = row.get("index");
+                (id, index)
+            })
+            .collect::<Vec<_>>();
 
         if nonces.len() != signatures.len() {
             return Err(Error::StorageFailure);
         }
 
         let mut indexes = Vec::with_capacity(signatures.len());
-        for (nonce, (outcome, sig)) in nonces.iter().zip(signatures.iter()) {
-            sqlx::query!(
+        for ((id, index), (outcome, sig)) in nonces.iter().zip(signatures.iter()) {
+            sqlx::query(
                 r#"
                 UPDATE event_nonces
                 SET outcome = $1, signature = $2
                 WHERE id = $3
                 "#,
-                outcome,
-                sig.encode(),
-                nonce.id
             )
+            .bind(outcome)
+            .bind(sig.encode())
+            .bind(id)
             .execute(&mut *tx)
             .await
             .map_err(|_| Error::StorageFailure)?;
 
-            indexes.push(nonce.index as u32);
+            indexes.push(*index as u32);
         }
 
-        let oracle_event = oracle_event(&event.oracle_event);
+        let oracle_event = to_oracle_event(&oracle_event);
 
         let data = OracleEventData {
-            event_id: event.event_id.clone(),
+            event_id: event_id.clone(),
             announcement: OracleAnnouncement {
-                announcement_signature: Signature::from_slice(&event.announcement_signature)
+                announcement_signature: Signature::from_slice(&announcement_signature)
                     .map_err(|_| Error::StorageFailure)?,
                 oracle_public_key: self.oracle_public_key,
                 oracle_event,
@@ -271,16 +307,15 @@ impl Storage for PostgresStorage {
     async fn get_event(&self, event_id: String) -> Result<Option<OracleEventData>, Error> {
         let mut tx = self.pool.begin().await.map_err(|_| Error::StorageFailure)?;
 
-        let event = match sqlx::query!(
+        let row = match sqlx::query(
             r#"
             SELECT 
-                event_id, announcement_signature, oracle_event,
-                announcement_event_id, attestation_event_id
+                event_id, announcement_signature, oracle_event
             FROM events
             WHERE event_id = $1
             "#,
-            event_id
         )
+        .bind(event_id.clone())
         .fetch_optional(&mut *tx)
         .await
         .map_err(|e| {
@@ -291,25 +326,39 @@ impl Storage for PostgresStorage {
             None => return Ok(None),
         };
 
-        let nonces = sqlx::query!(
+        let event_id: String = row.get("event_id");
+        let announcement_signature: Vec<u8> = row.get("announcement_signature");
+        let oracle_event: Vec<u8> = row.get("oracle_event");
+
+        let row = sqlx::query(
             r#"
             SELECT index, outcome, signature
             FROM event_nonces
             WHERE event_id = $1
             ORDER BY index
             "#,
-            event_id
         )
+        .bind(event_id.clone())
         .fetch_all(&mut *tx)
         .await
         .map_err(|_| Error::StorageFailure)?;
 
-        let indexes = nonces.iter().map(|n| n.index as u32).collect();
+        let nonces = row
+            .iter()
+            .map(|row| {
+                let index: i32 = row.get("index");
+                let outcome: Option<String> = row.get("outcome");
+                let signature: Option<Vec<u8>> = row.get("signature");
+                (index, outcome, signature)
+            })
+            .collect::<Vec<_>>();
+
+        let indexes = nonces.iter().map(|(index, _, _)| *index as u32).collect();
 
         let signatures = nonces
             .into_iter()
-            .filter_map(|n| {
-                if let (Some(outcome), Some(sig)) = (n.outcome, n.signature) {
+            .filter_map(|(_, outcome, sig)| {
+                if let (Some(outcome), Some(sig)) = (outcome, sig) {
                     Some((outcome, Signature::from_slice(&sig).ok()?))
                 } else {
                     None
@@ -317,12 +366,12 @@ impl Storage for PostgresStorage {
             })
             .collect();
 
-        let oracle_event = oracle_event(&event.oracle_event);
+        let oracle_event = to_oracle_event(&oracle_event);
 
         let data = OracleEventData {
-            event_id: event.event_id,
+            event_id: event_id.clone(),
             announcement: OracleAnnouncement {
-                announcement_signature: Signature::from_slice(&event.announcement_signature)
+                announcement_signature: Signature::from_slice(&announcement_signature)
                     .map_err(|_| Error::StorageFailure)?,
                 oracle_public_key: self.oracle_public_key,
                 oracle_event,
@@ -336,7 +385,7 @@ impl Storage for PostgresStorage {
     }
 }
 
-fn oracle_event(oracle_event: &Vec<u8>) -> OracleEvent {
+fn to_oracle_event(oracle_event: &Vec<u8>) -> OracleEvent {
     let mut cursor = kormir::lightning::io::Cursor::new(&oracle_event);
     OracleEvent::read(&mut cursor).expect("invalid oracle event")
 }
