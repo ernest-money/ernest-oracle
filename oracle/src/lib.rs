@@ -11,8 +11,8 @@ pub mod watcher;
 use std::time::Duration;
 
 use bitcoin::XOnlyPublicKey;
+use ddk::ddk_manager::Oracle as DlcOracle;
 use ddk::Oracle;
-use ddk_manager::Oracle as DlcOracle;
 use dlc_messages::oracle_msgs::{OracleAnnouncement, OracleAttestation};
 use kormir::storage::OracleEventData;
 use parlay::ParlayContract;
@@ -29,8 +29,8 @@ pub struct OracleServerState {
     pub mempool: mempool::MempoolClient,
 }
 
-pub fn oracle_err_to_manager_err(e: OracleServerError) -> ddk_manager::error::Error {
-    ddk_manager::error::Error::OracleError(e.reason.to_string())
+pub fn oracle_err_to_manager_err(e: OracleServerError) -> ddk::ddk_manager::error::Error {
+    ddk::ddk_manager::error::Error::OracleError(e.reason.to_string())
 }
 
 pub struct ErnestOracleClient {
@@ -72,7 +72,6 @@ impl ErnestOracleClient {
         T: serde::de::DeserializeOwned,
     {
         let url = format!("{}{}", self.base_url, path);
-        println!("url: {}", url);
         let response = self
             .client
             .get(url)
@@ -176,7 +175,7 @@ impl DlcOracle for ErnestOracleClient {
     async fn get_announcement(
         &self,
         event_id: &str,
-    ) -> Result<OracleAnnouncement, ddk_manager::error::Error> {
+    ) -> Result<OracleAnnouncement, ddk::ddk_manager::error::Error> {
         self.get_announcement_event(event_id)
             .await
             .map_err(oracle_err_to_manager_err)
@@ -185,7 +184,7 @@ impl DlcOracle for ErnestOracleClient {
     async fn get_attestation(
         &self,
         event_id: &str,
-    ) -> Result<OracleAttestation, ddk_manager::error::Error> {
+    ) -> Result<OracleAttestation, ddk::ddk_manager::error::Error> {
         self.get_attestation_event(event_id)
             .await
             .map_err(oracle_err_to_manager_err)
