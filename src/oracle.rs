@@ -1,7 +1,8 @@
 use crate::{
-    events::EventType,
+    events::{EventParams, EventType},
     mempool::MempoolClient,
     parlay::{self, CombinationMethod, ParlayParameter},
+    routes::CreateEvent,
     storage::PostgresStorage,
 };
 use bitcoin::{
@@ -11,8 +12,12 @@ use bitcoin::{
     Network, XOnlyPublicKey,
 };
 use kormir::{Oracle, OracleAnnouncement};
-use sqlx::PgPool;
+use serde::{Deserialize, Serialize};
+use sqlx::{FromRow, PgPool, Postgres};
 use uuid::Uuid;
+
+pub const IS_SIGNED: bool = false;
+pub const PRECISION: i32 = 2;
 
 pub struct ErnestOracle {
     pub oracle: Oracle<PostgresStorage>,
@@ -39,6 +44,54 @@ impl ErnestOracle {
             pubkey: keypair.x_only_public_key().0,
             mempool,
         })
+    }
+
+    pub async fn create_event(&self, event: CreateEvent) -> anyhow::Result<OracleAnnouncement> {
+        let announcement = match event {
+            CreateEvent::Single {
+                event_type,
+                maturity,
+            } => {
+                let event_id = Uuid::new_v4().to_string();
+                let event_params: EventParams = event_type.clone().into();
+                let announcement = self
+                    .oracle
+                    .create_numeric_event(
+                        event_id.clone(),
+                        event_params.nb_digits,
+                        IS_SIGNED,
+                        PRECISION,
+                        event_params.unit,
+                        maturity,
+                    )
+                    .await?;
+                self.add_event_type_to_oracle_data(event_id, "single")
+                    .await?;
+                Ok(announcement)
+            }
+            CreateEvent::Parlay {
+                parameters,
+                combination_method,
+                max_normalized_value,
+                event_maturity_epoch,
+            } => {
+                let announcement = self
+                    .create_parlay_announcement(
+                        parameters,
+                        combination_method,
+                        max_normalized_value,
+                        event_maturity_epoch,
+                    )
+                    .await?;
+                self.add_event_type_to_oracle_data(
+                    announcement.oracle_event.event_id.clone(),
+                    "parlay",
+                )
+                .await?;
+                Ok(announcement)
+            }
+        };
+        announcement
     }
 
     pub async fn create_parlay_announcement(
@@ -99,6 +152,49 @@ impl ErnestOracle {
             parlay::convert_to_attestable_value(combined_score, contract.max_normalized_value);
         Ok(attestable_value)
     }
+
+    async fn add_event_type_to_oracle_data(
+        &self,
+        event_id: String,
+        event_type: &str,
+    ) -> anyhow::Result<()> {
+        let mut tx = self.pool.begin().await?;
+        sqlx::query("INSERT INTO event_types (oracle_event_id, event_type) VALUES ($1, $2)")
+            .bind(event_id)
+            .bind(event_type)
+            .execute(&mut *tx)
+            .await?;
+        tx.commit().await?;
+        Ok(())
+    }
+
+    pub async fn list_events_with_types(&self, event_type: &str) -> anyhow::Result<Vec<Events>> {
+        let events = sqlx::query_as::<Postgres, Events>(
+            r#"
+            SELECT 
+                e.event_id,
+                types.event_type
+            FROM 
+                events e
+            JOIN 
+                event_types types ON e.event_id = types.oracle_event_id
+            WHERE
+                types.event_type = $1
+            ORDER BY 
+                e.event_id DESC
+            "#,
+        )
+        .bind(event_type)
+        .fetch_all(&self.pool)
+        .await?;
+        Ok(events)
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, FromRow)]
+pub struct Events {
+    pub event_id: String,
+    pub event_type: String,
 }
 
 /// Calculate oracle parameters from max normalized value

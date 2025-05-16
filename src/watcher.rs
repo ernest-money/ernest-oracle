@@ -15,7 +15,7 @@ pub async fn sign_matured_events_loop(state: Arc<OracleServerState>) {
 }
 
 async fn sign_matured_events(state: Arc<OracleServerState>) {
-    let Ok(events) = state.oracle.oracle.storage.list_events().await else {
+    let Ok(events) = state.oracle.oracle.storage.oracle_event_data().await else {
         return log::error!("Failed to get all events.");
     };
 

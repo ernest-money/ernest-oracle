@@ -1,4 +1,4 @@
-use crate::events::{EventParams, EventType};
+use crate::events::EventType;
 use crate::parlay::{CombinationMethod, ParlayContract, ParlayParameter};
 use crate::OracleServerError;
 use crate::OracleServerState;
@@ -12,10 +12,6 @@ use kormir::{
 use serde::{Deserialize, Serialize};
 
 use std::sync::Arc;
-use uuid::Uuid;
-
-pub const IS_SIGNED: bool = false;
-pub const PRECISION: i32 = 2;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -40,45 +36,7 @@ pub async fn create_event_internal(
     state: Arc<OracleServerState>,
     event: CreateEvent,
 ) -> anyhow::Result<OracleAnnouncement> {
-    let announcement = match event {
-        CreateEvent::Single {
-            event_type,
-            maturity,
-        } => {
-            let event_id = Uuid::new_v4().to_string();
-            let event_params: EventParams = event_type.into();
-            Ok(state
-                .oracle
-                .oracle
-                .create_numeric_event(
-                    event_id,
-                    event_params.nb_digits,
-                    IS_SIGNED,
-                    PRECISION,
-                    event_params.unit,
-                    maturity,
-                )
-                .await?)
-        }
-        CreateEvent::Parlay {
-            parameters,
-            combination_method,
-            max_normalized_value,
-            event_maturity_epoch,
-        } => {
-            let announcement = state
-                .oracle
-                .create_parlay_announcement(
-                    parameters,
-                    combination_method,
-                    max_normalized_value,
-                    event_maturity_epoch,
-                )
-                .await?;
-            Ok(announcement)
-        }
-    };
-    announcement
+    state.oracle.create_event(event).await
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -192,7 +150,7 @@ pub async fn oracle_info_internal(state: Arc<OracleServerState>) -> OracleInfo {
 pub async fn list_events_internal(
     state: Arc<OracleServerState>,
 ) -> anyhow::Result<Vec<OracleEventData>> {
-    let events = state.oracle.oracle.storage.list_events().await?;
+    let events = state.oracle.oracle.storage.oracle_event_data().await?;
     Ok(events)
 }
 

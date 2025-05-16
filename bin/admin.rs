@@ -39,6 +39,8 @@ enum AdminCommand {
     Events {
         #[clap(long)]
         id: Option<String>,
+        #[clap(long, default_value = "parlay")]
+        event_type: String,
     },
 }
 
@@ -101,12 +103,10 @@ async fn main() -> anyhow::Result<()> {
                 .await?;
             println!("\n\tSigned event {:?}", event_id);
         }
-        AdminCommand::Events { id } => {
-            let events = oracle.oracle.storage.list_events().await?;
+        AdminCommand::Events { id, event_type } => {
+            let events = oracle.list_events_with_types(&event_type).await?;
             if let Some(id) = id {
-                let event = events
-                    .iter()
-                    .find(|e| e.announcement.oracle_event.event_id == id);
+                let event = events.iter().find(|e| e.event_id == id);
                 if let Some(event) = event {
                     print!("{}", serde_json::to_string_pretty(event)?);
                 } else {

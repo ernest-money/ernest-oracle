@@ -41,7 +41,7 @@ impl PostgresStorage {
         })
     }
 
-    pub async fn list_events(&self) -> Result<Vec<OracleEventData>, Error> {
+    pub async fn oracle_event_data(&self) -> Result<Vec<OracleEventData>, Error> {
         let mut tx = self.pool.begin().await.map_err(|_| Error::StorageFailure)?;
         let row = sqlx::query("SELECT event_id, announcement_signature, oracle_event FROM events")
             .fetch_all(&mut *tx)
