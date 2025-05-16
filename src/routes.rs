@@ -18,16 +18,20 @@ pub const IS_SIGNED: bool = false;
 pub const PRECISION: i32 = 2;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "lowercase")]
+#[serde(rename_all = "camelCase")]
 pub enum CreateEvent {
     Single {
+        #[serde(rename = "eventType")]
         event_type: EventType,
         maturity: u32,
     },
     Parlay {
         parameters: Vec<ParlayParameter>,
+        #[serde(rename = "combinationMethod")]
         combination_method: CombinationMethod,
+        #[serde(rename = "maxNormalizedValue")]
         max_normalized_value: Option<u64>,
+        #[serde(rename = "eventMaturityEpoch")]
         event_maturity_epoch: u32,
     },
 }
@@ -78,6 +82,7 @@ pub async fn create_event_internal(
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct GetAnnouncement {
     event_id: String,
 }
@@ -102,6 +107,7 @@ pub async fn get_announcement_internal(
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct SignEvent {
     pub event_id: String,
 }
@@ -138,6 +144,7 @@ pub async fn sign_event_internal(
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct GetAttestation {
     event_id: String,
 }
@@ -178,7 +185,7 @@ pub struct OracleInfo {
 pub async fn oracle_info_internal(state: Arc<OracleServerState>) -> OracleInfo {
     OracleInfo {
         pubkey: state.oracle.oracle.public_key(),
-        name: "Ernest Hashrate Oracle".to_string(),
+        name: "Ernest Parlay Oracle".to_string(),
     }
 }
 

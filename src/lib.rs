@@ -108,7 +108,7 @@ impl ErnestOracleClient {
         &self,
         event_id: &str,
     ) -> Result<OracleAnnouncement, OracleServerError> {
-        let path = format!("/api/announcement?event_id={}", event_id);
+        let path = format!("/api/announcement?eventId={}", event_id);
         let response = self.get::<OracleAnnouncement>(&path).await?;
         Ok(response)
     }
@@ -117,7 +117,7 @@ impl ErnestOracleClient {
         &self,
         event_id: &str,
     ) -> Result<OracleAttestation, OracleServerError> {
-        let path = format!("/api/attestation?event_id={}", event_id);
+        let path = format!("/api/attestation?eventId={}", event_id);
         let response = self.get::<OracleAttestation>(&path).await?;
         Ok(response)
     }
@@ -126,7 +126,7 @@ impl ErnestOracleClient {
         &self,
         event_id: &str,
     ) -> Result<ParlayContract, OracleServerError> {
-        let path = format!("/api/parlay?event_id={}", event_id);
+        let path = format!("/api/parlay?eventId={}", event_id);
         let response = self.get::<ParlayContract>(&path).await?;
         Ok(response)
     }

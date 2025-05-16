@@ -6,8 +6,8 @@ use strum::IntoEnumIterator;
 use strum_macros::{Display, EnumIter, EnumString};
 
 #[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq, EnumIter, Display, EnumString)]
-#[serde(rename_all = "lowercase")]
-#[strum(serialize_all = "lowercase")]
+#[serde(rename_all = "camelCase")]
+#[strum(serialize_all = "camelCase")]
 pub enum EventType {
     Hashrate,
     FeeRate,
@@ -106,8 +106,8 @@ mod tests {
         let events = EventType::available_events();
         assert_eq!(events.len(), 4);
         assert_eq!(&events[0].to_string(), "hashrate");
-        assert_eq!(&events[1].to_string(), "feerate");
-        assert_eq!(&events[2].to_string(), "blockreward");
-        assert_eq!(&events[3].to_string(), "difficultyadjustment");
+        assert_eq!(&events[1].to_string(), "feeRate");
+        assert_eq!(&events[2].to_string(), "blockReward");
+        assert_eq!(&events[3].to_string(), "difficultyAdjustment");
     }
 }

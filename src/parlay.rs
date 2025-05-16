@@ -1,12 +1,13 @@
-use std::fmt::Display;
-use std::str::FromStr;
-
 use crate::events::EventType;
 use serde::{Deserialize, Serialize};
 use sqlx::postgres::PgRow;
 use sqlx::prelude::FromRow;
 use sqlx::PgPool;
 use sqlx::Row;
+use std::str::FromStr;
+use strum_macros::Display;
+use strum_macros::EnumIter;
+use strum_macros::EnumString;
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow, PartialEq)]
 #[serde(rename_all = "camelCase")]
@@ -65,8 +66,9 @@ impl ParlayParameter {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
-#[serde(rename_all = "camelCase")]
+#[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq, EnumIter, Display, EnumString)]
+#[serde(rename_all = "lowercase")]
+#[strum(serialize_all = "lowercase")]
 pub enum TransformationFunction {
     Linear,
     Quadratic,
@@ -75,68 +77,15 @@ pub enum TransformationFunction {
     Logarithmic,
 }
 
-impl Display for TransformationFunction {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            TransformationFunction::Linear => write!(f, "linear"),
-            TransformationFunction::Quadratic => write!(f, "quadratic"),
-            TransformationFunction::Sqrt => write!(f, "sqrt"),
-            TransformationFunction::Exponential => write!(f, "exponential"),
-            TransformationFunction::Logarithmic => write!(f, "logarithmic"),
-        }
-    }
-}
-
-impl FromStr for TransformationFunction {
-    type Err = anyhow::Error;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "linear" => Ok(TransformationFunction::Linear),
-            "quadratic" => Ok(TransformationFunction::Quadratic),
-            "sqrt" => Ok(TransformationFunction::Sqrt),
-            "exponential" => Ok(TransformationFunction::Exponential),
-            "logarithmic" => Ok(TransformationFunction::Logarithmic),
-            _ => Err(anyhow::anyhow!("Invalid transformation function")),
-        }
-    }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, EnumIter, Display, EnumString)]
 #[serde(rename_all = "camelCase")]
+#[strum(serialize_all = "camelCase")]
 pub enum CombinationMethod {
     Multiply,
     WeightedAverage,
     GeometricMean,
     Min,
     Max,
-}
-
-impl Display for CombinationMethod {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            CombinationMethod::Multiply => write!(f, "multiply"),
-            CombinationMethod::WeightedAverage => write!(f, "weighted_average"),
-            CombinationMethod::GeometricMean => write!(f, "geometric_mean"),
-            CombinationMethod::Min => write!(f, "min"),
-            CombinationMethod::Max => write!(f, "max"),
-        }
-    }
-}
-
-impl FromStr for CombinationMethod {
-    type Err = anyhow::Error;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "multiply" => Ok(CombinationMethod::Multiply),
-            "weighted_average" => Ok(CombinationMethod::WeightedAverage),
-            "geometric_mean" => Ok(CombinationMethod::GeometricMean),
-            "min" => Ok(CombinationMethod::Min),
-            "max" => Ok(CombinationMethod::Max),
-            _ => Err(anyhow::anyhow!("Invalid combination method")),
-        }
-    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow, PartialEq)]
@@ -292,6 +241,8 @@ pub fn convert_to_attestable_value(combined_score: f64, max_normalized_value: u6
 
 #[cfg(test)]
 mod tests {
+    use strum::IntoEnumIterator;
+
     use super::*;
 
     #[tokio::test]
@@ -327,5 +278,31 @@ mod tests {
         )
         .await
         .expect("could not create parlay contract");
+    }
+
+    #[test]
+    fn transformation_conversion() {
+        let trans = TransformationFunction::iter()
+            .map(|f| f.to_string())
+            .collect::<Vec<_>>();
+        assert_eq!(trans.len(), 5);
+        assert_eq!(trans[0], "linear");
+        assert_eq!(trans[1], "quadratic");
+        assert_eq!(trans[2], "sqrt");
+        assert_eq!(trans[3], "exponential");
+        assert_eq!(trans[4], "logarithmic");
+    }
+
+    #[test]
+    fn combination_method_conversion() {
+        let comb = CombinationMethod::iter()
+            .map(|f| f.to_string())
+            .collect::<Vec<_>>();
+        assert_eq!(comb.len(), 5);
+        assert_eq!(comb[0], "multiply");
+        assert_eq!(comb[1], "weightedAverage");
+        assert_eq!(comb[2], "geometricMean");
+        assert_eq!(comb[3], "min");
+        assert_eq!(comb[4], "max");
     }
 }
