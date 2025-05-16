@@ -1,44 +1,18 @@
-use std::{fmt::Display, str::FromStr};
+use std::str::FromStr;
 
 use crate::mempool::{MempoolClient, TimePeriod};
-use anyhow::anyhow;
 use serde::{Deserialize, Serialize};
+use strum::IntoEnumIterator;
+use strum_macros::{Display, EnumIter, EnumString};
 
-#[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq, EnumIter, Display, EnumString)]
 #[serde(rename_all = "lowercase")]
+#[strum(serialize_all = "lowercase")]
 pub enum EventType {
     Hashrate,
-    #[serde(rename = "fee-rate")]
     FeeRate,
-    #[serde(rename = "block-reward")]
     BlockReward,
-    #[serde(rename = "difficulty")]
-    DificultyAdjustment,
-}
-
-impl Display for EventType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            EventType::Hashrate => write!(f, "hashrate"),
-            EventType::FeeRate => write!(f, "fee-rate"),
-            EventType::BlockReward => write!(f, "block-reward"),
-            EventType::DificultyAdjustment => write!(f, "difficulty"),
-        }
-    }
-}
-
-impl FromStr for EventType {
-    type Err = anyhow::Error;
-
-    fn from_str(value: &str) -> Result<Self, Self::Err> {
-        match value {
-            "block-reward" => Ok(Self::BlockReward),
-            "difficulty" => Ok(Self::DificultyAdjustment),
-            "fee-rate" => Ok(Self::FeeRate),
-            "hashrate" => Ok(Self::Hashrate),
-            _ => Err(anyhow!("Unit not supported.".to_string())),
-        }
-    }
+    DifficultyAdjustment,
 }
 
 impl EventType {
@@ -53,7 +27,7 @@ impl EventType {
                     .get_block_rewards(TimePeriod::ThreeMonths)
                     .await
             }
-            EventType::DificultyAdjustment => {
+            EventType::DifficultyAdjustment => {
                 mempool_client
                     .get_difficulty_adjustments(TimePeriod::ThreeMonths)
                     .await
@@ -72,7 +46,7 @@ impl EventType {
                     .get_block_rewards(TimePeriod::ThreeMonths)
                     .await
             }
-            EventType::DificultyAdjustment => {
+            EventType::DifficultyAdjustment => {
                 mempool_client
                     .get_difficulty_adjustments(TimePeriod::ThreeMonths)
                     .await
@@ -82,6 +56,10 @@ impl EventType {
         }?;
 
         Ok(mempool.ceil() as i64)
+    }
+
+    pub fn available_events() -> Vec<EventType> {
+        EventType::iter().collect()
     }
 }
 
@@ -98,23 +76,38 @@ impl From<EventType> for EventParams {
             EventType::BlockReward => Self {
                 event_type: value,
                 nb_digits: 20,
-                unit: "block-reward".to_string(),
+                unit: EventType::BlockReward.to_string(),
             },
-            EventType::DificultyAdjustment => Self {
+            EventType::DifficultyAdjustment => Self {
                 event_type: value,
                 nb_digits: 20,
-                unit: "difficulty".to_string(),
+                unit: EventType::DifficultyAdjustment.to_string(),
             },
             EventType::FeeRate => Self {
                 event_type: value,
                 nb_digits: 20,
-                unit: "fee-rate".to_string(),
+                unit: EventType::FeeRate.to_string(),
             },
             EventType::Hashrate => Self {
                 event_type: value,
                 nb_digits: 20,
-                unit: "hashrate".to_string(),
+                unit: EventType::Hashrate.to_string(),
             },
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_available_events() {
+        let events = EventType::available_events();
+        assert_eq!(events.len(), 4);
+        assert_eq!(&events[0].to_string(), "hashrate");
+        assert_eq!(&events[1].to_string(), "feerate");
+        assert_eq!(&events[2].to_string(), "blockreward");
+        assert_eq!(&events[3].to_string(), "difficultyadjustment");
     }
 }

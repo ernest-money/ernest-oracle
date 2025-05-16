@@ -9,9 +9,9 @@ use bitcoin::{
     key::{Keypair, Secp256k1},
     secp256k1::SecretKey,
 };
-use ernest_oracle::oracle::ErnestOracle;
 use ernest_oracle::routes;
 use ernest_oracle::storage::PostgresStorage;
+use ernest_oracle::{events::EventType, oracle::ErnestOracle};
 use ernest_oracle::{
     mempool::{MempoolClient, BASE_URL},
     parlay::ParlayContract,
@@ -64,7 +64,8 @@ async fn main() -> anyhow::Result<()> {
                 .route("/announcement", get(get_announcement_event))
                 .route("/attestation", get(get_attestation))
                 .route("/sign-event", post(sign_event))
-                .route("/parlay", get(get_parlay_contract)),
+                .route("/parlay", get(get_parlay_contract))
+                .route("/events/available", get(get_available_events)),
         )
         .with_state(state);
 
@@ -176,4 +177,8 @@ async fn get_parlay_contract(
             }),
         )),
     }
+}
+
+async fn get_available_events() -> Json<Vec<EventType>> {
+    Json(routes::get_available_events_internal())
 }

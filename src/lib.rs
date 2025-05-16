@@ -14,6 +14,7 @@ use bitcoin::XOnlyPublicKey;
 use ddk::ddk_manager::Oracle as DlcOracle;
 use ddk::Oracle;
 use dlc_messages::oracle_msgs::{OracleAnnouncement, OracleAttestation};
+use events::EventType;
 use kormir::storage::OracleEventData;
 use parlay::ParlayContract;
 use reqwest::Client;
@@ -157,6 +158,11 @@ impl ErnestOracleClient {
         let events = self.get::<Vec<OracleEventData>>("/api/list-events").await?;
         Ok(events)
     }
+
+    pub async fn get_available_events(&self) -> Result<Vec<EventType>, OracleServerError> {
+        let events = self.get::<Vec<EventType>>("/api/events/available").await?;
+        Ok(events)
+    }
 }
 
 impl Oracle for ErnestOracleClient {
@@ -215,7 +221,7 @@ mod tests {
                     weight: 1.0,
                 },
                 ParlayParameter {
-                    data_type: EventType::DificultyAdjustment,
+                    data_type: EventType::DifficultyAdjustment,
                     threshold: 150000,
                     range: 1000000,
                     is_above_threshold: true,
@@ -296,7 +302,7 @@ mod tests {
                     weight: 1.0,
                 },
                 ParlayParameter {
-                    data_type: EventType::DificultyAdjustment,
+                    data_type: EventType::DifficultyAdjustment,
                     threshold: 150000,
                     range: 1000000,
                     is_above_threshold: true,
@@ -321,7 +327,7 @@ mod tests {
                     weight: 1.0,
                 },
                 ParlayParameter {
-                    data_type: EventType::DificultyAdjustment,
+                    data_type: EventType::DifficultyAdjustment,
                     threshold: 150000,
                     range: 1000000,
                     is_above_threshold: true,

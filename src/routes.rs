@@ -200,6 +200,11 @@ pub async fn get_parlay_contract_internal(
 ) -> anyhow::Result<ParlayContract> {
     Ok(state.oracle.get_parlay_contract(event.event_id).await?)
 }
+
+pub fn get_available_events_internal() -> Vec<EventType> {
+    EventType::available_events()
+}
+
 #[cfg(test)]
 mod tests {
     use std::str::FromStr;
