@@ -72,12 +72,12 @@ async fn main() -> anyhow::Result<()> {
                             .expect("Could not prompt for outcome") as i64;
                     let normalized_value = parameter.normalize_parameter(outcome);
                     println!(
-                        "normalized value for {:?}: {:?}",
+                        "normalized value for {:?}:\t {:?}",
                         parameter.data_type, normalized_value
                     );
                     let transformed_value = parameter.apply_transformation(normalized_value);
                     println!(
-                        "transformed value for {:?}: {:?}",
+                        "transformed value for {:?}:\t {:?}",
                         parameter.data_type, transformed_value
                     );
                     transformed_value
@@ -91,21 +91,15 @@ async fn main() -> anyhow::Result<()> {
                 .collect::<Vec<_>>();
             let combined_score =
                 parlay::combine_scores(&outcomes, &weights, &contract.combination_method);
-            println!(
-                "combined score for contract {:?}: {:?}",
-                contract.id, combined_score
-            );
+            println!("\n\tcombined score:\t {:?}", combined_score);
             let attestable_value =
                 parlay::convert_to_attestable_value(combined_score, contract.max_normalized_value);
-            println!(
-                "attestable value for contract {:?}: {:?}",
-                contract.id, attestable_value
-            );
+            println!("\tattested value:\t {:?}", attestable_value);
             oracle
                 .oracle
                 .sign_numeric_event(event_id.clone(), attestable_value as i64)
                 .await?;
-            println!("Signed event {:?}", event_id);
+            println!("\n\tSigned event {:?}", event_id);
         }
         AdminCommand::Events { id } => {
             let events = oracle.oracle.storage.list_events().await?;
