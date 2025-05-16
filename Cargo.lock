@@ -791,33 +791,6 @@ checksum = "2a2330da5de22e8a3cb63252ce2abb30116bf5265e89c0e01bc17015ce30a476"
 [[package]]
 name = "ddk"
 version = "0.0.17"
-dependencies = [
- "async-trait",
- "bdk_chain",
- "bdk_esplora",
- "bdk_wallet",
- "bitcoin",
- "chrono",
- "ddk-manager 0.7.5",
- "dlc",
- "dlc-messages",
- "dlc-trie",
- "hex",
- "hmac",
- "kormir",
- "lightning",
- "serde",
- "serde_json",
- "sha2",
- "thiserror 1.0.69",
- "tokio",
- "tracing",
- "uuid",
-]
-
-[[package]]
-name = "ddk"
-version = "0.0.17"
 source = "git+https://github.com/bennyhodl/dlcdevkit?branch=master#24c09d2c29fc878b00d95a1f5254b623ddce677f"
 dependencies = [
  "async-trait",
@@ -827,7 +800,7 @@ dependencies = [
  "bdk_wallet",
  "bitcoin",
  "chrono",
- "ddk-manager 0.7.5 (git+https://github.com/bennyhodl/dlcdevkit?branch=master)",
+ "ddk-manager",
  "dlc",
  "dlc-messages",
  "dlc-trie",
@@ -845,24 +818,6 @@ dependencies = [
  "tokio",
  "tracing",
  "uuid",
-]
-
-[[package]]
-name = "ddk-manager"
-version = "0.7.5"
-dependencies = [
- "async-trait",
- "bitcoin",
- "dlc",
- "dlc-messages",
- "dlc-trie",
- "futures",
- "hex-conservative 0.1.2",
- "lightning",
- "secp256k1-zkp",
- "serde",
- "tokio",
- "tracing",
 ]
 
 [[package]]
@@ -1059,8 +1014,8 @@ dependencies = [
  "bitcoin",
  "chrono",
  "clap",
- "ddk 0.0.17 (git+https://github.com/bennyhodl/dlcdevkit?branch=master)",
- "ddk-manager 0.7.5 (git+https://github.com/bennyhodl/dlcdevkit?branch=master)",
+ "ddk",
+ "ddk-manager",
  "dlc-messages",
  "dotenv",
  "env_logger",
@@ -1075,21 +1030,6 @@ dependencies = [
  "tokio",
  "uuid",
  "wiremock",
-]
-
-[[package]]
-name = "ernest-oracle-client"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "bitcoin",
- "ddk 0.0.17",
- "ddk-manager 0.7.5",
- "dlc-messages",
- "kormir",
- "reqwest 0.12.9",
- "serde",
- "serde_json",
 ]
 
 [[package]]

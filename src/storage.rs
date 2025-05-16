@@ -1,4 +1,3 @@
-// use crate::models::event::{Event, NewEvent};
 use bitcoin::secp256k1::schnorr::Signature;
 use bitcoin::secp256k1::XOnlyPublicKey;
 use dlc_messages::oracle_msgs::{EventDescriptor, OracleAnnouncement};
