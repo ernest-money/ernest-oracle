@@ -11,11 +11,12 @@ axum-macros = "0.4.2"
 bitcoin = { version = "0.32.5", features = ["rand"] }
 chrono = "0.4.38"
 clap = { version = "4.5.37", features = ["derive"] }
-# ddk = "0.0.17"
-# ddk = {path = "../../dlcdevkit/ddk"}
-ddk = { version = "0.0.17", git = "https://github.com/bennyhodl/dlcdevkit", branch = "master", features = ["postgres", "nostr"] }
-ddk-manager = { version = "0.7.5", git = "https://github.com/bennyhodl/dlcdevkit", branch = "master" }
-# ddk-manager = {path = "../../dlcdevkit/ddk-manager"}
+ddk = { version = "0.0.18", features = ["postgres", "nostr"] }
+ddk-manager = "0.7.6"
+# ddk = { version = "0.0.18", git = "https://github.com/bennyhodl/dlcdevkit", branch = "master", features = ["postgres", "nostr"] }
+# ddk-manager = { version = "0.7.6", git = "https://github.com/bennyhodl/dlcdevkit", branch = "master" }
+# ddk = {path = "../dlcdevkit/ddk"}
+# ddk-manager = {path = "../dlcdevkit/ddk-manager"}
 dlc-messages = "0.7.1"
 dotenv = "0.15.0"
 env_logger = "0.11.5"

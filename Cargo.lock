@@ -790,8 +790,9 @@ checksum = "2a2330da5de22e8a3cb63252ce2abb30116bf5265e89c0e01bc17015ce30a476"
 
 [[package]]
 name = "ddk"
-version = "0.0.17"
-source = "git+https://github.com/bennyhodl/dlcdevkit?branch=master#24c09d2c29fc878b00d95a1f5254b623ddce677f"
+version = "0.0.18"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "26a8ad76e3c29f4cda3fed872621b53da7f5284f812e8c04ab17977d3da21da5"
 dependencies = [
  "async-trait",
  "base64 0.13.1",
@@ -822,8 +823,9 @@ dependencies = [
 
 [[package]]
 name = "ddk-manager"
-version = "0.7.5"
-source = "git+https://github.com/bennyhodl/dlcdevkit?branch=master#24c09d2c29fc878b00d95a1f5254b623ddce677f"
+version = "0.7.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ec6882420444c1c80cd2826e5714f2c334206bf2209b8a62b223b2a8499dd2b7"
 dependencies = [
  "async-trait",
  "bitcoin",
