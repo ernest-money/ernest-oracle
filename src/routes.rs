@@ -155,6 +155,7 @@ pub async fn list_events_internal(
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct GetParlayContract {
     pub event_id: String,
 }

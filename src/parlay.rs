@@ -89,6 +89,7 @@ pub enum CombinationMethod {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow, PartialEq)]
+#[serde(rename_all = "camelCase")]
 pub struct ParlayContract {
     /// The id of the contract used for the announcement
     pub id: String,
@@ -217,8 +218,7 @@ pub fn combine_scores(
         CombinationMethod::Multiply => events.iter().product(),
         CombinationMethod::WeightedAverage => {
             let sum: f64 = events.iter().zip(weights).map(|(e, w)| e * w).sum();
-            let total_weight: f64 = weights.iter().sum();
-            sum / total_weight
+            sum / events.len() as f64
         }
         CombinationMethod::GeometricMean => {
             let product: f64 = events.iter().product();
