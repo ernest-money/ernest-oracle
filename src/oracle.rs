@@ -1,7 +1,11 @@
 use crate::{
     events::{EventParams, EventType},
     mempool::MempoolClient,
-    parlay::{self, CombinationMethod, ParlayParameter},
+    parlay::{
+        self,
+        contract::{CombinationMethod, ParlayContract},
+        parameter::ParlayParameter,
+    },
     routes::CreateEvent,
     storage::PostgresStorage,
 };
@@ -109,7 +113,7 @@ impl ErnestOracle {
         let (nb_digits, _) = calculate_oracle_parameters(max_normalized_value);
 
         let id = Uuid::new_v4().to_string();
-        parlay::ParlayContract::new(
+        ParlayContract::new(
             self.pool.clone(),
             id.clone(),
             parameters,
@@ -131,13 +135,13 @@ impl ErnestOracle {
         Ok(announcement)
     }
 
-    pub async fn get_parlay_contract(&self, id: String) -> anyhow::Result<parlay::ParlayContract> {
-        let contract = parlay::get_parlay_contract(self.pool.clone(), id).await?;
+    pub async fn get_parlay_contract(&self, id: String) -> anyhow::Result<ParlayContract> {
+        let contract = parlay::contract::get_parlay_contract(self.pool.clone(), id).await?;
         Ok(contract)
     }
 
     pub async fn attest_parlay_contract(&self, id: String) -> anyhow::Result<u64> {
-        let contract = parlay::get_parlay_contract(self.pool.clone(), id).await?;
+        let contract = parlay::contract::get_parlay_contract(self.pool.clone(), id).await?;
         let mut scores = Vec::new();
         for parameter in contract.parameters {
             let outcome = EventType::outcome(&parameter.data_type, &self.mempool).await?;
@@ -147,9 +151,13 @@ impl ErnestOracle {
             // let score = transformed_value * parameter.weight;
             scores.push(transformed_value);
         }
-        let combined_score = parlay::combine_scores(&scores, &[], &contract.combination_method);
-        let attestable_value =
-            parlay::convert_to_attestable_value(combined_score, contract.max_normalized_value);
+        let combined_score =
+            parlay::contract::combine_scores(&scores, &[], &contract.combination_method);
+
+        let attestable_value = parlay::contract::convert_to_attestable_value(
+            combined_score,
+            contract.max_normalized_value,
+        );
         Ok(attestable_value)
     }
 
@@ -222,7 +230,7 @@ pub fn calculate_oracle_parameters(max_normalized_value: u64) -> (u16, u64) {
 mod tests {
     use crate::{
         mempool::MempoolClient,
-        parlay::{CombinationMethod, ParlayContract},
+        parlay::contract::{CombinationMethod, ParlayContract},
         test_util::{setup_ernest_oracle, setup_mock_server_from_test_vectors, TestVectors},
     };
     use sqlx::PgPool;

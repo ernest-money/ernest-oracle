@@ -1,5 +1,8 @@
 use crate::events::EventType;
-use crate::parlay::{CombinationMethod, ParlayContract, ParlayParameter};
+use crate::parlay::{
+    contract::{CombinationMethod, ParlayContract},
+    parameter::ParlayParameter,
+};
 use crate::OracleServerError;
 use crate::OracleServerState;
 use anyhow::anyhow;

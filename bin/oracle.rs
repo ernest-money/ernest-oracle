@@ -14,13 +14,14 @@ use ernest_oracle::storage::PostgresStorage;
 use ernest_oracle::{events::EventType, oracle::ErnestOracle};
 use ernest_oracle::{
     mempool::{MempoolClient, BASE_URL},
-    parlay::ParlayContract,
+    parlay::contract::ParlayContract,
 };
 use ernest_oracle::{OracleServerError, OracleServerState};
 use kormir::{storage::OracleEventData, OracleAnnouncement, OracleAttestation};
 use log::LevelFilter;
 use sqlx::PgPool;
 use std::{str::FromStr, sync::Arc};
+use tokio::{signal, sync::watch};
 
 pub const PORT: u16 = 3001;
 
@@ -48,10 +49,11 @@ async fn main() -> anyhow::Result<()> {
 
     let state = Arc::new(OracleServerState { oracle, mempool });
 
-    let _state_clone = state.clone();
-    // tokio::spawn(async move {
-    //     ernest_oracle::watcher::sign_matured_events_loop(state_clone).await;
-    // });
+    let state_clone = state.clone();
+    let (stop_signal_sender, stop_signal) = watch::channel(false);
+    tokio::spawn(async move {
+        ernest_oracle::watcher::sign_matured_events_loop(state_clone, stop_signal.clone()).await;
+    });
 
     let app = Router::new()
         .nest(
@@ -75,9 +77,41 @@ async fn main() -> anyhow::Result<()> {
 
     log::info!("Serving hashrate oracle on port {}", port);
 
-    axum::serve(listener, app.into_make_service()).await?;
+    axum::serve(listener, app.into_make_service())
+        .with_graceful_shutdown(shutdown_signal(stop_signal_sender))
+        .await?;
 
     Ok(())
+}
+
+async fn shutdown_signal(stop_signal: watch::Sender<bool>) {
+    let ctrl_c = async {
+        signal::ctrl_c()
+            .await
+            .expect("failed to install Ctrl+C handler");
+        let _ = stop_signal.send(true);
+    };
+
+    #[cfg(unix)]
+    let terminate = async {
+        signal::unix::signal(signal::unix::SignalKind::terminate())
+            .expect("failed to install signal handler")
+            .recv()
+            .await;
+        let _ = stop_signal.send(true);
+    };
+
+    #[cfg(not(unix))]
+    let terminate = std::future::pending::<()>();
+
+    tokio::select! {
+        _ = ctrl_c => {
+            println!("Received Ctrl+C, shutting down gracefully...");
+        },
+        _ = terminate => {
+            println!("Received SIGTERM, shutting down gracefully...");
+        },
+    }
 }
 
 async fn hello() -> Html<&'static str> {

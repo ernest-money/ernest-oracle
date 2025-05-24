@@ -16,7 +16,7 @@ use ddk::Oracle;
 use dlc_messages::oracle_msgs::{OracleAnnouncement, OracleAttestation};
 use events::EventType;
 use kormir::storage::OracleEventData;
-use parlay::ParlayContract;
+use parlay::contract::ParlayContract;
 use reqwest::Client;
 use routes::{CreateEvent, OracleInfo, SignEvent};
 
@@ -203,7 +203,10 @@ mod tests {
 
     use crate::{
         events::EventType,
-        parlay::{CombinationMethod, ParlayParameter, TransformationFunction},
+        parlay::{
+            contract::CombinationMethod,
+            parameter::{ParlayParameter, TransformationFunction},
+        },
     };
 
     use super::*;

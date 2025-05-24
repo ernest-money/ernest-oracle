@@ -63,6 +63,12 @@ impl EventType {
     }
 }
 
+/// Parameters for an event.
+///
+/// This is used to store the event type, the number of digits to round to, and the unit of the event.
+/// Specifically when the event is a single contract to be attested to.
+///
+/// The unit is used to determine the unit of the event.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EventParams {
     pub event_type: EventType,

@@ -59,7 +59,7 @@ async fn main() -> anyhow::Result<()> {
 
     match args.command {
         AdminCommand::SignEvent { event_id } => {
-            let contract = parlay::get_parlay_contract(pool, event_id.clone()).await?;
+            let contract = parlay::contract::get_parlay_contract(pool, event_id.clone()).await?;
             let outcomes = contract
                 .parameters
                 .iter()
@@ -92,10 +92,12 @@ async fn main() -> anyhow::Result<()> {
                 .map(|parameter| parameter.weight)
                 .collect::<Vec<_>>();
             let combined_score =
-                parlay::combine_scores(&outcomes, &weights, &contract.combination_method);
+                parlay::contract::combine_scores(&outcomes, &weights, &contract.combination_method);
             println!("\n\tcombined score:\t {:?}", combined_score);
-            let attestable_value =
-                parlay::convert_to_attestable_value(combined_score, contract.max_normalized_value);
+            let attestable_value = parlay::contract::convert_to_attestable_value(
+                combined_score,
+                contract.max_normalized_value,
+            );
             println!("\tattested value:\t {:?}", attestable_value);
             oracle
                 .oracle

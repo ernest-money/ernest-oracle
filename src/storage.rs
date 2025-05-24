@@ -121,6 +121,21 @@ impl PostgresStorage {
         tx.commit().await.map_err(|_| Error::StorageFailure)?;
         Ok(oracle_events)
     }
+
+    pub async fn get_event_maturity(&self, event_id: String) -> Result<u32, Error> {
+        let mut tx = self.pool.begin().await.map_err(|_| Error::StorageFailure)?;
+
+        let row = sqlx::query("SELECT oracle_event FROM events WHERE event_id = $1")
+            .bind(event_id)
+            .fetch_one(&mut *tx)
+            .await
+            .map_err(|_| Error::StorageFailure)?;
+
+        let oracle_event: Vec<u8> = row.get("oracle_event");
+        let oracle_event = to_oracle_event(&oracle_event);
+        let event_maturity_epoch = oracle_event.event_maturity_epoch;
+        Ok(event_maturity_epoch)
+    }
 }
 
 impl Storage for PostgresStorage {

@@ -1,6 +1,6 @@
 use crate::mempool::MempoolClient;
 use crate::oracle::ErnestOracle;
-use crate::parlay::ParlayParameter;
+use crate::parlay::parameter::ParlayParameter;
 use crate::storage::PostgresStorage;
 use bitcoin::key::{Keypair, Secp256k1};
 use bitcoin::secp256k1::SecretKey;
