@@ -11,8 +11,8 @@ use strum_macros::{Display, EnumIter, EnumString};
 pub enum EventType {
     Hashrate,
     FeeRate,
-    BlockReward,
-    DifficultyAdjustment,
+    BlockFees,
+    Difficulty,
 }
 
 impl EventType {
@@ -22,17 +22,9 @@ impl EventType {
     ) -> anyhow::Result<i64> {
         let event_type = EventType::from_str(unit)?;
         let mempool = match event_type {
-            EventType::BlockReward => {
-                mempool_client
-                    .get_block_rewards(TimePeriod::ThreeMonths)
-                    .await
-            }
-            EventType::DifficultyAdjustment => {
-                mempool_client
-                    .get_difficulty_adjustments(TimePeriod::ThreeMonths)
-                    .await
-            }
-            EventType::FeeRate => mempool_client.get_block_fees(TimePeriod::ThreeMonths).await,
+            EventType::BlockFees => mempool_client.get_block_fees(TimePeriod::ThreeMonths).await,
+            EventType::Difficulty => mempool_client.get_difficulty(TimePeriod::ThreeMonths).await,
+            EventType::FeeRate => mempool_client.get_fee_rate(TimePeriod::ThreeMonths).await,
             EventType::Hashrate => mempool_client.get_hashrate(TimePeriod::ThreeMonths).await,
         }?;
 
@@ -41,17 +33,9 @@ impl EventType {
 
     pub async fn outcome(&self, mempool_client: &MempoolClient) -> anyhow::Result<i64> {
         let mempool = match self {
-            EventType::BlockReward => {
-                mempool_client
-                    .get_block_rewards(TimePeriod::ThreeMonths)
-                    .await
-            }
-            EventType::DifficultyAdjustment => {
-                mempool_client
-                    .get_difficulty_adjustments(TimePeriod::ThreeMonths)
-                    .await
-            }
-            EventType::FeeRate => mempool_client.get_block_fees(TimePeriod::ThreeMonths).await,
+            EventType::BlockFees => mempool_client.get_block_fees(TimePeriod::ThreeMonths).await,
+            EventType::Difficulty => mempool_client.get_difficulty(TimePeriod::ThreeMonths).await,
+            EventType::FeeRate => mempool_client.get_fee_rate(TimePeriod::ThreeMonths).await,
             EventType::Hashrate => mempool_client.get_hashrate(TimePeriod::All).await,
         }?;
 
@@ -76,18 +60,19 @@ pub struct EventParams {
     pub unit: String,
 }
 
+/// TODO: get the updates params for the data set
 impl From<EventType> for EventParams {
     fn from(value: EventType) -> Self {
         match value {
-            EventType::BlockReward => Self {
+            EventType::BlockFees => Self {
                 event_type: value,
                 nb_digits: 20,
-                unit: EventType::BlockReward.to_string(),
+                unit: EventType::BlockFees.to_string(),
             },
-            EventType::DifficultyAdjustment => Self {
+            EventType::Difficulty => Self {
                 event_type: value,
                 nb_digits: 20,
-                unit: EventType::DifficultyAdjustment.to_string(),
+                unit: EventType::Difficulty.to_string(),
             },
             EventType::FeeRate => Self {
                 event_type: value,

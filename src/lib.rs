@@ -224,7 +224,7 @@ mod tests {
                     weight: 1.0,
                 },
                 ParlayParameter {
-                    data_type: EventType::DifficultyAdjustment,
+                    data_type: EventType::Difficulty,
                     threshold: 150000,
                     range: 1000000,
                     is_above_threshold: true,
@@ -305,7 +305,7 @@ mod tests {
                     weight: 1.0,
                 },
                 ParlayParameter {
-                    data_type: EventType::DifficultyAdjustment,
+                    data_type: EventType::Difficulty,
                     threshold: 150000,
                     range: 1000000,
                     is_above_threshold: true,
@@ -330,7 +330,7 @@ mod tests {
                     weight: 1.0,
                 },
                 ParlayParameter {
-                    data_type: EventType::DifficultyAdjustment,
+                    data_type: EventType::Difficulty,
                     threshold: 150000,
                     range: 1000000,
                     is_above_threshold: true,

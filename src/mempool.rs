@@ -51,15 +51,6 @@ impl TimePeriod {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct BlockReward {
-    #[serde(rename = "avgHeight")]
-    pub avg_height: i64,
-    pub timestamp: i64,
-    #[serde(rename = "avgRewards")]
-    pub avg_rewards: i64,
-}
-
 #[derive(Debug, Serialize)]
 pub struct DifficultyAdjustment {
     pub timestamp: i64,
@@ -85,12 +76,32 @@ impl<'de> Deserialize<'de> for DifficultyAdjustment {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct BlockFees {
-    #[serde(rename = "avgHeight")]
     pub avg_height: i64,
     pub timestamp: i64,
-    #[serde(rename = "avgFees")]
     pub avg_fees: i64,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FeeRate {
+    pub avg_height: i64,
+    pub timestamp: i64,
+    #[serde(rename = "avgFee_0")]
+    pub avg_fee_0: f64,
+    #[serde(rename = "avgFee_10")]
+    pub avg_fee_10: f64,
+    #[serde(rename = "avgFee_25")]
+    pub avg_fee_25: f64,
+    #[serde(rename = "avgFee_50")]
+    pub avg_fee_50: f64,
+    #[serde(rename = "avgFee_75")]
+    pub avg_fee_75: f64,
+    #[serde(rename = "avgFee_90")]
+    pub avg_fee_90: f64,
+    #[serde(rename = "avgFee_100")]
+    pub avg_fee_100: f64,
 }
 
 #[derive(Debug, Clone)]
@@ -99,6 +110,7 @@ pub struct MempoolClient {
     base_url: String,
 }
 
+/// TODO: do we need to get the latest fee or the average over a time period?
 impl MempoolClient {
     pub fn new(base_url: String) -> Self {
         Self {
@@ -118,37 +130,32 @@ impl MempoolClient {
         Ok(data.current_hashrate)
     }
 
-    pub async fn get_block_rewards(&self, period: TimePeriod) -> anyhow::Result<f64> {
-        let url = format!(
-            "{}/mining/blocks/rewards/{}",
-            self.base_url,
-            period.as_str()
-        );
-        let response = self.client.get(&url).send().await?;
-        let data = response.json::<Vec<BlockReward>>().await?;
-        let average_rewards = Self::calculate_average(data, |r| r.avg_rewards as f64);
-        Ok(average_rewards)
-    }
-
-    pub async fn get_difficulty_adjustments(&self, interval: TimePeriod) -> anyhow::Result<f64> {
-        let url = format!(
-            "{}/mining/difficulty-adjustments/{}",
-            self.base_url,
-            interval.as_str()
-        );
-
-        let response = self.client.get(&url).send().await?;
-        let data = response.json::<Vec<DifficultyAdjustment>>().await?;
-        let average_difficulty = Self::calculate_average(data, |d| d.difficulty);
-        Ok(average_difficulty)
-    }
-
     pub async fn get_block_fees(&self, period: TimePeriod) -> anyhow::Result<f64> {
         let url = format!("{}/mining/blocks/fees/{}", self.base_url, period.as_str());
         let response = self.client.get(&url).send().await?;
         let data = response.json::<Vec<BlockFees>>().await?;
         let average_fees = Self::calculate_average(data, |f| f.avg_fees as f64);
         Ok(average_fees)
+    }
+
+    pub async fn get_difficulty(&self, interval: TimePeriod) -> anyhow::Result<f64> {
+        let url = format!("{}/mining/hashrate/{}", self.base_url, interval.as_str());
+
+        let response = self.client.get(&url).send().await?;
+        let data = response.json::<HashrateResponse>().await?;
+        Ok(data.current_difficulty)
+    }
+
+    pub async fn get_fee_rate(&self, period: TimePeriod) -> anyhow::Result<f64> {
+        let url = format!(
+            "{}/mining/blocks/fee-rates/{}",
+            self.base_url,
+            period.as_str()
+        );
+        let response = self.client.get(&url).send().await?;
+        let data = response.json::<Vec<FeeRate>>().await?;
+        let average_fee_rate = Self::calculate_average(data, |f| f.avg_fee_90);
+        Ok(average_fee_rate)
     }
 
     fn calculate_average<T, F>(data: Vec<T>, extractor: F) -> f64
@@ -182,17 +189,15 @@ mod tests {
         let fees = client.get_block_fees(TimePeriod::ThreeMonths).await;
         assert!(fees.unwrap() > 0.0);
 
-        // Test block rewards endpoint
-        let rewards = client
-            .get_block_rewards(TimePeriod::ThreeMonths)
-            .await
-            .unwrap();
-        assert!(rewards > 0.0);
-
         // Test difficulty adjustments endpoint
-        client
-            .get_difficulty_adjustments(TimePeriod::ThreeMonths)
+        let difficulty = client
+            .get_difficulty(TimePeriod::ThreeMonths)
             .await
             .unwrap();
+        assert!(difficulty > 0.0);
+
+        // Test fee rate endpoint
+        let fee_rate = client.get_fee_rate(TimePeriod::ThreeMonths).await.unwrap();
+        assert!(fee_rate > 0.0);
     }
 }

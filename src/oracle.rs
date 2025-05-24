@@ -143,14 +143,17 @@ impl ErnestOracle {
     pub async fn attest_parlay_contract(&self, id: String) -> anyhow::Result<u64> {
         let contract = parlay::contract::get_parlay_contract(self.pool.clone(), id).await?;
         let mut scores = Vec::new();
+        let mut weights = Vec::new();
         for parameter in contract.parameters {
             let outcome = EventType::outcome(&parameter.data_type, &self.mempool).await?;
             let normalized_value = parameter.normalize_parameter(outcome);
             let transformed_value = parameter.apply_transformation(normalized_value);
             // TODO: assert weights are correct.
-            // let score = transformed_value * parameter.weight;
-            scores.push(transformed_value);
+            let score = transformed_value * parameter.weight;
+            scores.push(score);
+            weights.push(parameter.weight);
         }
+
         let combined_score =
             parlay::contract::combine_scores(&scores, &[], &contract.combination_method);
 
