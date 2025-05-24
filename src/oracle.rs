@@ -148,14 +148,13 @@ impl ErnestOracle {
             let outcome = EventType::outcome(&parameter.data_type, &self.mempool).await?;
             let normalized_value = parameter.normalize_parameter(outcome);
             let transformed_value = parameter.apply_transformation(normalized_value);
-            // TODO: assert weights are correct.
             let score = transformed_value * parameter.weight;
             scores.push(score);
             weights.push(parameter.weight);
         }
 
         let combined_score =
-            parlay::contract::combine_scores(&scores, &[], &contract.combination_method);
+            parlay::contract::combine_scores(&scores, &contract.combination_method);
 
         let attestable_value = parlay::contract::convert_to_attestable_value(
             combined_score,

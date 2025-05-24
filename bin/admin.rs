@@ -86,13 +86,8 @@ async fn main() -> anyhow::Result<()> {
                 })
                 .collect::<Vec<_>>();
 
-            let weights = contract
-                .parameters
-                .iter()
-                .map(|parameter| parameter.weight)
-                .collect::<Vec<_>>();
             let combined_score =
-                parlay::contract::combine_scores(&outcomes, &weights, &contract.combination_method);
+                parlay::contract::combine_scores(&outcomes, &contract.combination_method);
             println!("\n\tcombined score:\t {:?}", combined_score);
             let attestable_value = parlay::contract::convert_to_attestable_value(
                 combined_score,

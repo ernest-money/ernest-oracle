@@ -123,15 +123,11 @@ fn contract_from_row(contract: PgRow, parameters: Vec<PgRow>) -> anyhow::Result<
     })
 }
 
-pub fn combine_scores(
-    events: &[f64],
-    weights: &[f64],
-    combination_method: &CombinationMethod,
-) -> f64 {
+pub fn combine_scores(events: &[f64], combination_method: &CombinationMethod) -> f64 {
     match combination_method {
         CombinationMethod::Multiply => events.iter().product(),
         CombinationMethod::WeightedAverage => {
-            let sum: f64 = events.iter().zip(weights).map(|(e, w)| e * w).sum();
+            let sum: f64 = events.iter().sum();
             sum / events.len() as f64
         }
         CombinationMethod::GeometricMean => {
