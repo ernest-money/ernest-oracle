@@ -14,7 +14,7 @@ use std::sync::Arc;
 
 #[derive(Clone)]
 pub struct PostgresStorage {
-    pool: Pool<Postgres>,
+    pub pool: Pool<Postgres>,
     oracle_public_key: XOnlyPublicKey,
     current_index: Arc<AtomicU32>,
 }

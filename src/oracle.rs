@@ -1,4 +1,5 @@
 use crate::{
+    attestation::{self, AttestationDataOutcome},
     events::{EventParams, EventType},
     mempool::MempoolClient,
     parlay::{
@@ -144,6 +145,7 @@ impl ErnestOracle {
         log::info!("Attesting parlay contract. id={}", id);
         let contract = parlay::contract::get_parlay_contract(self.pool.clone(), id.clone()).await?;
         let mut scores = Vec::new();
+        let mut outcomes = Vec::new();
         for parameter in contract.parameters {
             let outcome = EventType::outcome(&parameter.data_type, &self.mempool)
                 .await
@@ -158,6 +160,12 @@ impl ErnestOracle {
             let normalized_value = parameter.normalize_parameter(outcome);
             let transformed_value = parameter.apply_transformation(normalized_value);
             let score = transformed_value * parameter.weight;
+            outcomes.push(AttestationDataOutcome {
+                event_id: id.clone(),
+                data_type: parameter.data_type.to_string(),
+                normalized_value: score,
+                original_value: outcome,
+            });
             scores.push(score);
         }
 
@@ -173,6 +181,16 @@ impl ErnestOracle {
             .oracle
             .sign_numeric_event(id.clone(), attestable_value as i64)
             .await?;
+
+        attestation::save_attestation_outcome(
+            &self.pool,
+            id.clone(),
+            combined_score,
+            attestable_value,
+        )
+        .await?;
+
+        attestation::save_attestation_data_outcomes(&self.pool, outcomes).await?;
 
         log::info!(
             "Attested parlay contract. id={} attested_value={}",

@@ -1,4 +1,5 @@
 use axum::{
+    debug_handler,
     extract::{Query, State},
     http::StatusCode,
     response::{Html, IntoResponse},
@@ -9,6 +10,7 @@ use bitcoin::{
     key::{Keypair, Secp256k1},
     secp256k1::SecretKey,
 };
+use ernest_oracle::attestation::ErnestOracleOutcome;
 use ernest_oracle::routes;
 use ernest_oracle::storage::PostgresStorage;
 use ernest_oracle::{events::EventType, oracle::ErnestOracle};
@@ -65,6 +67,7 @@ async fn main() -> anyhow::Result<()> {
                 .route("/create", post(create_event))
                 .route("/announcement", get(get_announcement_event))
                 .route("/attestation", get(get_attestation))
+                .route("/attestation/outcome", get(get_attestation_outcome))
                 .route("/sign-event", post(sign_event))
                 .route("/parlay", get(get_parlay_contract))
                 .route("/events/available", get(get_available_events)),
@@ -215,4 +218,20 @@ async fn get_parlay_contract(
 
 async fn get_available_events() -> Json<Vec<EventType>> {
     Json(routes::get_available_events_internal())
+}
+
+#[debug_handler]
+async fn get_attestation_outcome(
+    State(state): State<Arc<OracleServerState>>,
+    event: Query<routes::GetAttestationOutcome>,
+) -> Result<Json<ErnestOracleOutcome>, (StatusCode, Json<OracleServerError>)> {
+    match routes::get_attestation_outcome_internal(state, event.0).await {
+        Ok(outcome) => Ok(Json(outcome)),
+        Err(e) => Err((
+            StatusCode::BAD_REQUEST,
+            Json(OracleServerError {
+                reason: e.to_string(),
+            }),
+        )),
+    }
 }

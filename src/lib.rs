@@ -1,4 +1,5 @@
 #![allow(dead_code)]
+pub mod attestation;
 pub mod events;
 pub mod mempool;
 pub mod oracle;
@@ -10,6 +11,7 @@ pub mod watcher;
 
 use std::time::Duration;
 
+use attestation::ErnestOracleOutcome;
 use bitcoin::XOnlyPublicKey;
 use ddk::ddk_manager::Oracle as DlcOracle;
 use ddk::Oracle;
@@ -162,6 +164,15 @@ impl ErnestOracleClient {
     pub async fn get_available_events(&self) -> Result<Vec<EventType>, OracleServerError> {
         let events = self.get::<Vec<EventType>>("/api/events/available").await?;
         Ok(events)
+    }
+
+    pub async fn get_attestation_outcome(
+        &self,
+        event_id: &str,
+    ) -> Result<ErnestOracleOutcome, OracleServerError> {
+        let path = format!("/api/attestation/outcome?eventId={}", event_id);
+        let response = self.get::<ErnestOracleOutcome>(&path).await?;
+        Ok(response)
     }
 }
 

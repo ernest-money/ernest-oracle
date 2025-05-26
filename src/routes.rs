@@ -1,10 +1,11 @@
+use crate::attestation::ErnestOracleOutcome;
 use crate::events::EventType;
 use crate::parlay::{
     contract::{CombinationMethod, ParlayContract},
     parameter::ParlayParameter,
 };
-use crate::OracleServerError;
 use crate::OracleServerState;
+use crate::{attestation, OracleServerError};
 use anyhow::anyhow;
 use bitcoin::XOnlyPublicKey;
 use kormir::{
@@ -172,4 +173,20 @@ pub async fn get_parlay_contract_internal(
 
 pub fn get_available_events_internal() -> Vec<EventType> {
     EventType::available_events()
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GetAttestationOutcome {
+    pub event_id: String,
+}
+
+pub async fn get_attestation_outcome_internal(
+    state: Arc<OracleServerState>,
+    event: GetAttestationOutcome,
+) -> anyhow::Result<ErnestOracleOutcome> {
+    Ok(
+        attestation::get_attestation_outcome(&state.oracle.oracle.storage.pool, event.event_id)
+            .await?,
+    )
 }

@@ -2,7 +2,7 @@ use kormir::EventDescriptor;
 use std::{sync::Arc, time::Duration};
 use tokio::sync::watch;
 
-use crate::{events::EventType, OracleServerState};
+use crate::{attestation, events::EventType, OracleServerState};
 
 pub async fn sign_matured_events_loop(
     state: Arc<OracleServerState>,
@@ -70,6 +70,39 @@ async fn sign_single_events(state: Arc<OracleServerState>) {
                 outcome
             );
         }
+
+        if let Err(e) = attestation::save_attestation_outcome(
+            &state.oracle.oracle.storage.pool,
+            event_id.clone(),
+            outcome as f64,
+            outcome as u64,
+        )
+        .await
+        {
+            return log::error!(
+                "Could not save attestation outcome. error={} event_id={} outcome={}",
+                e.to_string(),
+                event_id,
+                outcome
+            );
+        }
+        if let Err(e) = attestation::save_attestation_data_outcome(
+            &state.oracle.oracle.storage.pool,
+            event_id.clone(),
+            unit,
+            outcome as f64,
+            outcome as f64,
+        )
+        .await
+        {
+            return log::error!(
+                "Could not save attestation data outcome. error={} event_id={} outcome={}",
+                e.to_string(),
+                event_id,
+                outcome
+            );
+        }
+
         return log::info!("Signed event. event_id={} outcome={}", event_id, outcome);
     }
 }
