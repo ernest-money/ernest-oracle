@@ -68,28 +68,22 @@ pub async fn setup_mock_server() -> MockServer {
         .mount(&mock_server)
         .await;
 
-    // Mock block rewards endpoint
+    // Mock fee rate endpoint
     Mock::given(method("GET"))
-        .and(path("/api/v1/mining/blocks/rewards/3m"))
+        .and(path("/api/v1/mining/blocks/fee-rates/3m"))
         .respond_with(ResponseTemplate::new(200).set_body_json(json!([
             {
-                "avgHeight": 599992,
-                "timestamp": 1571438412,
-                "avgRewards": 1260530933
+                "avgHeight": 735000,
+                "timestamp": 1652100000,
+                "avgFee_0": 1.0,
+                "avgFee_10": 5.0,
+                "avgFee_25": 10.0,
+                "avgFee_50": 20.0,
+                "avgFee_75": 50.0,
+                "avgFee_90": 100.0,
+                "avgFee_100": 200.0
             }
         ])))
-        .mount(&mock_server)
-        .await;
-
-    // Mock difficulty adjustments endpoint
-    Mock::given(method("GET"))
-        .and(path("/api/v1/mining/difficulty-adjustments/3m"))
-        .respond_with(ResponseTemplate::new(200).set_body_json(json!([[
-            1703311464,
-            822528,
-            72006146478567.1,
-            1.06983
-        ]])))
         .mount(&mock_server)
         .await;
 
@@ -136,7 +130,7 @@ pub async fn setup_mock_server_from_test_vectors(test_vector: TestVector) -> Moc
         match data_type.as_str() {
             "hashrate" => {
                 Mock::given(method("GET"))
-                    .and(path("/api/v1/mining/hashrate"))
+                    .and(path("/api/v1/mining/hashrate/3m"))
                     .respond_with(ResponseTemplate::new(200).set_body_json(json!({
                         "hashrates": [
                             {
@@ -148,7 +142,6 @@ pub async fn setup_mock_server_from_test_vectors(test_vector: TestVector) -> Moc
                             {
                                 "time": 1652468330,
                                 "difficulty": 31251101365711.12,
-                                "adjustment": 1.06983,
                                 "height": 736249
                             }
                         ],
@@ -168,29 +161,6 @@ pub async fn setup_mock_server_from_test_vectors(test_vector: TestVector) -> Moc
                             "avgFees": value
                         }
                     ])))
-                    .mount(&mock_server)
-                    .await;
-            }
-            "block-rewards" => {
-                Mock::given(method("GET"))
-                    .and(path("/api/v1/mining/blocks/rewards/3m"))
-                    .respond_with(ResponseTemplate::new(200).set_body_json(json!([
-                        {
-                            "avgHeight": 599992,
-                            "timestamp": 1571438412,
-                            "avgRewards": value
-                        }
-                    ])))
-                    .mount(&mock_server)
-                    .await;
-            }
-            "difficulty-adjustments" => {
-                Mock::given(method("GET"))
-                    .and(path("/api/v1/mining/difficulty-adjustments/3m"))
-                    .respond_with(
-                        ResponseTemplate::new(200)
-                            .set_body_json(json!([[1703311464, 822528, value, 1.06983]])),
-                    )
                     .mount(&mock_server)
                     .await;
             }

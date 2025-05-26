@@ -174,6 +174,30 @@ mod tests {
     use crate::test_util::setup_mock_server;
 
     #[tokio::test]
+    async fn test_mempool_client() {
+        let client = MempoolClient::new(BASE_URL.to_string());
+
+        // Test hashrate endpoint
+        let hashrate = client.get_hashrate(TimePeriod::ThreeMonths).await.unwrap();
+        assert!(hashrate > 0.0);
+
+        // Test block fees endpoint
+        let fees = client.get_block_fees(TimePeriod::ThreeMonths).await;
+        assert!(fees.unwrap() > 0.0);
+
+        // Test difficulty adjustments endpoint
+        let difficulty = client
+            .get_difficulty(TimePeriod::ThreeMonths)
+            .await
+            .unwrap();
+        assert!(difficulty > 0.0);
+
+        // Test fee rate endpoint
+        let fee_rate = client.get_fee_rate(TimePeriod::ThreeMonths).await.unwrap();
+        assert!(fee_rate > 0.0);
+    }
+
+    #[tokio::test]
     async fn test_mempool_client_with_mock_server() {
         // Start mock server
         let mock_server = setup_mock_server().await;

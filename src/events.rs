@@ -31,12 +31,13 @@ impl EventType {
         Ok(mempool.ceil() as i64)
     }
 
+    /// OK, we need floating points!!!!
     pub async fn outcome(&self, mempool_client: &MempoolClient) -> anyhow::Result<i64> {
         let mempool = match self {
             EventType::BlockFees => mempool_client.get_block_fees(TimePeriod::ThreeMonths).await,
             EventType::Difficulty => mempool_client.get_difficulty(TimePeriod::ThreeMonths).await,
             EventType::FeeRate => mempool_client.get_fee_rate(TimePeriod::ThreeMonths).await,
-            EventType::Hashrate => mempool_client.get_hashrate(TimePeriod::All).await,
+            EventType::Hashrate => mempool_client.get_hashrate(TimePeriod::ThreeMonths).await,
         }?;
 
         Ok(mempool.ceil() as i64)
@@ -98,7 +99,7 @@ mod tests {
         assert_eq!(events.len(), 4);
         assert_eq!(&events[0].to_string(), "hashrate");
         assert_eq!(&events[1].to_string(), "feeRate");
-        assert_eq!(&events[2].to_string(), "blockReward");
-        assert_eq!(&events[3].to_string(), "difficultyAdjustment");
+        assert_eq!(&events[2].to_string(), "blockFees");
+        assert_eq!(&events[3].to_string(), "difficulty");
     }
 }

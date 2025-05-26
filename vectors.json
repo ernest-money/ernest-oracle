@@ -6,10 +6,10 @@
         "id": "test1",
         "parameters": [
           {
-            "data_type": "hashrate",
+            "dataType": "hashrate",
             "threshold": 20000,
             "range": 100000,
-            "is_above_threshold": true,
+            "isAboveThreshold": true,
             "transformation": "linear",
             "weight": 1.0
           }
@@ -33,18 +33,18 @@
         "id": "test2",
         "parameters": [
           {
-            "data_type": "hashrate",
+            "dataType": "hashrate",
             "threshold": 2000000000000000,
             "range": 1000000000000000,
-            "is_above_threshold": true,
+            "isAboveThreshold": true,
             "transformation": "linear",
             "weight": 1.0
           },
           {
-            "data_type": "block-reward",
+            "dataType": "blockFees",
             "threshold": 20000000,
             "range": 10000000,
-            "is_above_threshold": true,
+            "isAboveThreshold": true,
             "transformation": "linear",
             "weight": 1.0
           }
@@ -54,7 +54,7 @@
       },
       "mock_inputs": {
         "hashrate": 2520332473552123,
-        "block-rewards": 24212890
+        "block-fees": 24212890
       },
       "expected": {
         "normalized_values": [0.52, 0.421289],
@@ -69,10 +69,10 @@
         "id": "test3",
         "parameters": [
           {
-            "data_type": "hashrate",
+            "dataType": "hashrate",
             "threshold": 2000000000000000,
             "range": 1000000000000000,
-            "is_above_threshold": true,
+            "isAboveThreshold": true,
             "transformation": "quadratic",
             "weight": 1.0
           }
@@ -96,10 +96,10 @@
         "id": "test4",
         "parameters": [
           {
-            "data_type": "hashrate",
+            "dataType": "hashrate",
             "threshold": 3000000000000000,
             "range": 1000000000000000,
-            "is_above_threshold": true,
+            "isAboveThreshold": true,
             "transformation": "linear",
             "weight": 1.0
           }
@@ -123,10 +123,10 @@
         "id": "test5",
         "parameters": [
           {
-            "data_type": "block-reward",
+            "dataType": "blockFees",
             "threshold": 30000000,
             "range": 10000000,
-            "is_above_threshold": false,
+            "isAboveThreshold": false,
             "transformation": "linear",
             "weight": 1.0
           }
@@ -135,7 +135,7 @@
         "max_normalized_value": 1000
       },
       "mock_inputs": {
-        "block-rewards": 24212890
+        "block-fees": 24212890
       },
       "expected": {
         "normalized_values": [0.578711],

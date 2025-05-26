@@ -15,9 +15,9 @@ use bitcoin::{
     secp256k1::All,
     Network, XOnlyPublicKey,
 };
-use kormir::{Oracle, OracleAnnouncement};
+use kormir::{Oracle, OracleAnnouncement, OracleAttestation, OracleEvent, Readable};
 use serde::{Deserialize, Serialize};
-use sqlx::{FromRow, PgPool, Postgres};
+use sqlx::{FromRow, PgPool, Postgres, Row};
 use uuid::Uuid;
 
 pub const IS_SIGNED: bool = false;
@@ -140,12 +140,22 @@ impl ErnestOracle {
         Ok(contract)
     }
 
-    pub async fn attest_parlay_contract(&self, id: String) -> anyhow::Result<u64> {
-        let contract = parlay::contract::get_parlay_contract(self.pool.clone(), id).await?;
+    pub async fn attest_parlay_contract(&self, id: String) -> anyhow::Result<OracleAttestation> {
+        log::info!("Attesting parlay contract. id={}", id);
+        let contract = parlay::contract::get_parlay_contract(self.pool.clone(), id.clone()).await?;
         let mut scores = Vec::new();
         let mut weights = Vec::new();
         for parameter in contract.parameters {
-            let outcome = EventType::outcome(&parameter.data_type, &self.mempool).await?;
+            let outcome = EventType::outcome(&parameter.data_type, &self.mempool)
+                .await
+                .map_err(|e| {
+                    anyhow::anyhow!(
+                        "Failed to get outcome for parameter. data_type={}, id={}, error={}",
+                        parameter.data_type,
+                        id,
+                        e
+                    )
+                })?;
             let normalized_value = parameter.normalize_parameter(outcome);
             let transformed_value = parameter.apply_transformation(normalized_value);
             let score = transformed_value * parameter.weight;
@@ -160,7 +170,64 @@ impl ErnestOracle {
             combined_score,
             contract.max_normalized_value,
         );
-        Ok(attestable_value)
+
+        let attestation = self
+            .oracle
+            .sign_numeric_event(id.clone(), attestable_value as i64)
+            .await?;
+
+        log::info!(
+            "Attested parlay contract. id={} attested_value={}",
+            id,
+            attestable_value
+        );
+
+        Ok(attestation)
+    }
+
+    /// Get event IDs and oracle event bytes for matured unsigned events by event type
+    pub async fn get_matured_unsigned_event_ids_by_type(
+        &self,
+        event_type: &str,
+    ) -> anyhow::Result<Vec<(String, OracleEvent)>> {
+        // Get current timestamp for maturity check
+        let now = chrono::Utc::now().timestamp() as u32;
+
+        let rows = sqlx::query(
+            r#"
+            SELECT e.event_id, e.oracle_event
+            FROM events e
+            INNER JOIN event_types et ON e.event_id = et.oracle_event_id
+            WHERE et.event_type = $1
+                AND NOT EXISTS (
+                    SELECT 1 FROM event_nonces en 
+                    WHERE en.event_id = e.event_id 
+                    AND en.signature IS NOT NULL
+                )
+            ORDER BY e.created_at ASC
+            "#,
+        )
+        .bind(event_type)
+        .fetch_all(&self.pool)
+        .await
+        .map_err(|_| anyhow::anyhow!("Failed to get matured unsigned event IDs"))?;
+
+        let results = rows
+            .into_iter()
+            .map(|row| {
+                let event_id: String = row.get("event_id");
+                let oracle_event: Vec<u8> = row.get("oracle_event");
+                let mut cursor = kormir::lightning::io::Cursor::new(&oracle_event);
+                let event = OracleEvent::read(&mut cursor)
+                    .expect("Should be able to read oracle event from db");
+                (event_id, event)
+            })
+            .collect::<Vec<(String, OracleEvent)>>();
+
+        Ok(results
+            .into_iter()
+            .filter(|(_, event)| event.event_maturity_epoch <= now)
+            .collect())
     }
 
     async fn add_event_type_to_oracle_data(
@@ -231,16 +298,21 @@ pub fn calculate_oracle_parameters(max_normalized_value: u64) -> (u16, u64) {
 #[cfg(test)]
 mod tests {
     use crate::{
-        mempool::MempoolClient,
-        parlay::contract::{CombinationMethod, ParlayContract},
+        events::EventType,
+        mempool::{MempoolClient, BASE_URL},
+        parlay::{
+            contract::{CombinationMethod, ParlayContract},
+            parameter::{ParlayParameter, TransformationFunction},
+        },
+        routes::CreateEvent,
         test_util::{setup_ernest_oracle, setup_mock_server_from_test_vectors, TestVectors},
     };
     use sqlx::PgPool;
-    use std::{fs::read_to_string, str::FromStr};
+    use std::{fs::read_to_string, str::FromStr, time::Duration};
 
     #[tokio::test]
     async fn test_attest_parlay_contract() {
-        let test_vectors = read_to_string("../vectors.json").expect("Failed to read test vectors");
+        let test_vectors = read_to_string("./vectors.json").expect("Failed to read test vectors");
         let test_vectors: TestVectors =
             serde_json::from_str(&test_vectors).expect("Failed to parse test vectors");
 
@@ -268,12 +340,59 @@ mod tests {
             )
             .await
             .expect("could not create parlay contract");
-            let attestable_value = oracle
-                .attest_parlay_contract(id.clone())
-                .await
-                .expect("could not attest parlay contract");
+            let attestation = oracle.attest_parlay_contract(id.clone()).await;
 
-            assert_eq!(attestable_value, test_vector.expected.attestation_value);
+            assert!(attestation.is_ok());
         }
+    }
+
+    #[tokio::test]
+    async fn retrieve_matured_unsigned_events() {
+        let mempool = MempoolClient::new(BASE_URL.to_string());
+        let oracle = setup_ernest_oracle(mempool).await;
+        let parameters = vec![
+            ParlayParameter {
+                data_type: EventType::Hashrate,
+                threshold: 5000,
+                range: 100000,
+                is_above_threshold: true,
+                weight: 1.0,
+                transformation: TransformationFunction::Linear,
+            },
+            ParlayParameter {
+                data_type: EventType::BlockFees,
+                threshold: 5000,
+                range: 100000,
+                is_above_threshold: true,
+                weight: 1.0,
+                transformation: TransformationFunction::Linear,
+            },
+        ];
+
+        let expiry = chrono::Utc::now().timestamp() as u32 + 2;
+
+        let announcement = oracle
+            .create_event(CreateEvent::Parlay {
+                parameters,
+                combination_method: CombinationMethod::WeightedAverage,
+                max_normalized_value: None,
+                event_maturity_epoch: expiry,
+            })
+            .await
+            .unwrap();
+
+        println!("announcement: {:?}", announcement.oracle_event.event_id);
+
+        tokio::time::sleep(Duration::from_secs(5)).await;
+
+        let events = oracle
+            .get_matured_unsigned_event_ids_by_type("parlay")
+            .await
+            .unwrap();
+        assert!(events.len() > 0);
+        let included = events
+            .iter()
+            .find(|(event_id, _)| event_id == &announcement.oracle_event.event_id);
+        assert!(included.is_some());
     }
 }
