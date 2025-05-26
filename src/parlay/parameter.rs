@@ -14,9 +14,9 @@ pub struct ParlayParameter {
     /// The type of event to be monitored from Bitcoin core
     pub data_type: EventType,
     /// The threshold value for the event for contract strike
-    pub threshold: u64,
+    pub threshold: f64,
     /// The range of the data type
-    pub range: u64,
+    pub range: f64,
     /// Whether the event is above the threshold for contract strike
     pub is_above_threshold: bool,
     /// The transformation function to be applied to the event
@@ -26,28 +26,28 @@ pub struct ParlayParameter {
 }
 
 impl ParlayParameter {
-    pub fn normalize_parameter(&self, value: i64) -> f64 {
+    pub fn normalize_parameter(&self, value: f64) -> f64 {
         if self.is_above_threshold {
             // Parameter must EXCEED threshold (e.g., hash rate > X)
-            if value <= self.threshold as i64 {
+            if value <= self.threshold {
                 // Below threshold - return 0
                 return 0.0;
             } else {
                 // Above threshold - normalize based on distance
-                let distance = value - self.threshold as i64;
-                let normalized = (distance as f64) / (self.range as f64);
+                let distance = value - self.threshold;
+                let normalized = distance as f64 / self.range;
                 // Cap at 1.0 for values beyond threshold + range
                 return normalized.min(1.0);
             }
         } else {
             // Parameter must STAY BELOW threshold (e.g., price < Y)
-            if value >= self.threshold as i64 {
+            if value >= self.threshold {
                 // Above threshold - return 0
                 return 0.0;
             } else {
                 // Below threshold - normalize based on distance
-                let distance = self.threshold as i64 - value;
-                let normalized = (distance as f64) / (self.range as f64);
+                let distance = self.threshold - value;
+                let normalized = distance / self.range;
                 // Cap at 1.0 for values beyond threshold - range
                 return normalized.min(1.0);
             }
@@ -78,16 +78,16 @@ pub enum TransformationFunction {
 
 pub fn parlay_parameter_from_row(row: &PgRow) -> anyhow::Result<ParlayParameter> {
     let data_type: String = row.get("data_type");
-    let threshold: i64 = row.get("threshold");
-    let range: i64 = row.get("range");
+    let threshold: f64 = row.get("threshold");
+    let range: f64 = row.get("range");
     let is_above_threshold: bool = row.get("is_above_threshold");
     let transformation: String = row.get("transformation");
     let weight: f64 = row.get("weight");
 
     Ok(ParlayParameter {
         data_type: EventType::from_str(&data_type)?,
-        threshold: threshold as u64,
-        range: range as u64,
+        threshold,
+        range,
         is_above_threshold,
         transformation: TransformationFunction::from_str(&transformation)?,
         weight,

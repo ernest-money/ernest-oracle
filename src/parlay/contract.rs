@@ -168,16 +168,16 @@ mod tests {
             vec![
                 ParlayParameter {
                     data_type: EventType::Hashrate,
-                    threshold: 1000,
-                    range: 1000,
+                    threshold: 1000.0,
+                    range: 1000.0,
                     is_above_threshold: true,
                     transformation: TransformationFunction::Linear,
                     weight: 1.0,
                 },
                 ParlayParameter {
                     data_type: EventType::Hashrate,
-                    threshold: 1000,
-                    range: 1000,
+                    threshold: 1000.0,
+                    range: 1000.0,
                     is_above_threshold: true,
                     transformation: TransformationFunction::Linear,
                     weight: 1.3,

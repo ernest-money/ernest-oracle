@@ -217,16 +217,16 @@ mod tests {
             parameters: vec![
                 ParlayParameter {
                     data_type: EventType::Hashrate,
-                    threshold: 5000,
-                    range: 100000,
+                    threshold: 5000.0,
+                    range: 100000.0,
                     is_above_threshold: true,
                     transformation: TransformationFunction::Linear,
                     weight: 1.0,
                 },
                 ParlayParameter {
                     data_type: EventType::Difficulty,
-                    threshold: 150000,
-                    range: 1000000,
+                    threshold: 150000.0,
+                    range: 1000000.0,
                     is_above_threshold: true,
                     transformation: TransformationFunction::Linear,
                     weight: 1.0,
@@ -298,16 +298,16 @@ mod tests {
             parameters: vec![
                 ParlayParameter {
                     data_type: EventType::Hashrate,
-                    threshold: 5000,
-                    range: 100000,
+                    threshold: 5000.0,
+                    range: 100000.0,
                     is_above_threshold: true,
                     transformation: TransformationFunction::Linear,
                     weight: 1.0,
                 },
                 ParlayParameter {
                     data_type: EventType::Difficulty,
-                    threshold: 150000,
-                    range: 1000000,
+                    threshold: 150000.0,
+                    range: 1000000.0,
                     is_above_threshold: true,
                     transformation: TransformationFunction::Linear,
                     weight: 1.0,
@@ -323,16 +323,16 @@ mod tests {
             parameters: vec![
                 ParlayParameter {
                     data_type: EventType::Hashrate,
-                    threshold: 5000,
-                    range: 100000,
+                    threshold: 5000.0,
+                    range: 100000.0,
                     is_above_threshold: true,
                     transformation: TransformationFunction::Linear,
                     weight: 1.0,
                 },
                 ParlayParameter {
                     data_type: EventType::Difficulty,
-                    threshold: 150000,
-                    range: 1000000,
+                    threshold: 150000.0,
+                    range: 1000000.0,
                     is_above_threshold: true,
                     transformation: TransformationFunction::Linear,
                     weight: 1.0,

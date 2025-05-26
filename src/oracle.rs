@@ -144,7 +144,6 @@ impl ErnestOracle {
         log::info!("Attesting parlay contract. id={}", id);
         let contract = parlay::contract::get_parlay_contract(self.pool.clone(), id.clone()).await?;
         let mut scores = Vec::new();
-        let mut weights = Vec::new();
         for parameter in contract.parameters {
             let outcome = EventType::outcome(&parameter.data_type, &self.mempool)
                 .await
@@ -160,7 +159,6 @@ impl ErnestOracle {
             let transformed_value = parameter.apply_transformation(normalized_value);
             let score = transformed_value * parameter.weight;
             scores.push(score);
-            weights.push(parameter.weight);
         }
 
         let combined_score =
@@ -353,16 +351,16 @@ mod tests {
         let parameters = vec![
             ParlayParameter {
                 data_type: EventType::Hashrate,
-                threshold: 5000,
-                range: 100000,
+                threshold: 5000.0,
+                range: 100000.0,
                 is_above_threshold: true,
                 weight: 1.0,
                 transformation: TransformationFunction::Linear,
             },
             ParlayParameter {
                 data_type: EventType::BlockFees,
-                threshold: 5000,
-                range: 100000,
+                threshold: 5000.0,
+                range: 100000.0,
                 is_above_threshold: true,
                 weight: 1.0,
                 transformation: TransformationFunction::Linear,

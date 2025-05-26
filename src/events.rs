@@ -32,7 +32,7 @@ impl EventType {
     }
 
     /// OK, we need floating points!!!!
-    pub async fn outcome(&self, mempool_client: &MempoolClient) -> anyhow::Result<i64> {
+    pub async fn outcome(&self, mempool_client: &MempoolClient) -> anyhow::Result<f64> {
         let mempool = match self {
             EventType::BlockFees => mempool_client.get_block_fees(TimePeriod::ThreeMonths).await,
             EventType::Difficulty => mempool_client.get_difficulty(TimePeriod::ThreeMonths).await,
@@ -40,7 +40,7 @@ impl EventType {
             EventType::Hashrate => mempool_client.get_hashrate(TimePeriod::ThreeMonths).await,
         }?;
 
-        Ok(mempool.ceil() as i64)
+        Ok(mempool)
     }
 
     pub fn available_events() -> Vec<EventType> {

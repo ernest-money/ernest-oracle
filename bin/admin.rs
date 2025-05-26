@@ -70,8 +70,8 @@ async fn main() -> anyhow::Result<()> {
                             .expect("Could not serialize parameter")
                     );
                     let outcome =
-                        inquire::prompt_u64(format!("Enter outcome for {}", parameter.data_type))
-                            .expect("Could not prompt for outcome") as i64;
+                        inquire::prompt_f64(format!("Enter outcome for {}", parameter.data_type))
+                            .expect("Could not prompt for outcome");
                     let normalized_value = parameter.normalize_parameter(outcome);
                     println!(
                         "normalized value for {:?}:\t {:?}",
