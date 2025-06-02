@@ -24,11 +24,17 @@ pub async fn sign_matured_events_loop(
 }
 
 async fn sign_parlay_events(state: Arc<OracleServerState>) {
-    let unsiged_matured_parlay_events = state
+    let unsiged_matured_parlay_events = match state
         .oracle
         .get_matured_unsigned_event_ids_by_type("parlay")
         .await
-        .unwrap();
+    {
+        Ok(events) => events,
+        Err(e) => {
+            log::error!("Failed to get matured unsigned parlay events. error={}", e);
+            return;
+        }
+    };
 
     for (event_id, _) in unsiged_matured_parlay_events {
         if let Err(error) = state.oracle.attest_parlay_contract(event_id.clone()).await {

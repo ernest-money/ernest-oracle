@@ -226,7 +226,7 @@ impl ErnestOracle {
         .bind(event_type)
         .fetch_all(&self.pool)
         .await
-        .map_err(|_| anyhow::anyhow!("Failed to get matured unsigned event IDs"))?;
+        .map_err(|e| anyhow::anyhow!("Failed to get matured unsigned event IDs. error={}", e))?;
 
         let results = rows
             .into_iter()
