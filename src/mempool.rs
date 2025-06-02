@@ -143,7 +143,7 @@ impl MempoolClient {
 
         let response = self.client.get(&url).send().await?;
         let data = response.json::<HashrateResponse>().await?;
-        Ok(data.current_difficulty)
+        Ok(data.current_difficulty / 1e12)
     }
 
     pub async fn get_fee_rate(&self, period: TimePeriod) -> anyhow::Result<f64> {
